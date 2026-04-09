@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSINT Neural Nexus</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app-container">
+        <!-- Header / Search Bar -->
+        <header id="top-bar">
+            <div class="logo">
+                <span class="glitch" data-text="NEXUS_OS">NEXUS_OS</span><span class="version">v1.0.0</span>
+            </div>
+            <div class="search-container">
+                <span class="prompt-symbol">></span>
+                <input type="text" id="target-input" placeholder="Enter @username, real name, or email..." autocomplete="off" spellcheck="false">
+                <button id="search-btn">INITIALIZE</button>
+            </div>
+            <div class="status-indicator">
+                <div class="dot blinking"></div>
+                <span>SYSTEM ONLINE</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main id="main-panel">
+            <!-- Node Canvas Area -->
+            <section id="node-canvas">
+                <!-- Nodes will be injected here via JS -->
+                <div class="canvas-overlay">AWAITING TARGET ACQUISITION...</div>
+            </section>
+
+            <!-- Terminal Logs -->
+            <aside id="terminal-sidebar">
+                <div class="terminal-header">
+                    <span>// SYSTEM LOGS</span>
+                    <div class="terminal-controls">
+                        <span class="control-btn minimize"></span>
+                        <span class="control-btn maximize"></span>
+                        <span class="control-btn close"></span>
+                    </div>
+                </div>
+                <div id="terminal-content">
+                    <p class="log system">[SYS] Boot sequence completed.</p>
+                    <p class="log system">[SYS] Secure channel established.</p>
+                    <p class="log system">[SYS] Ready for input.</p>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/app.js"></script>
+</body>
+</html>
