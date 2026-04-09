@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,12 +16,12 @@
             </div>
             <div class="search-container">
                 <span class="prompt-symbol">></span>
-                <input type="text" id="target-input" placeholder="Enter @username, real name, or email..." autocomplete="off" spellcheck="false">
-                <button id="search-btn">INITIALIZE</button>
+                <input type="text" id="target-input" placeholder="Digite o @username, nome real, ou e-mail..." autocomplete="off" spellcheck="false">
+                <button id="search-btn">INICIAR</button>
             </div>
             <div class="status-indicator">
                 <div class="dot blinking"></div>
-                <span>SYSTEM ONLINE</span>
+                <span>SISTEMA ONLINE</span>
             </div>
         </header>
 
@@ -30,13 +30,13 @@
             <!-- Node Canvas Area -->
             <section id="node-canvas">
                 <!-- Nodes will be injected here via JS -->
-                <div class="canvas-overlay">AWAITING TARGET ACQUISITION...</div>
+                <div class="canvas-overlay">AGUARDANDO OBTENÇÃO DO ALVO...</div>
             </section>
 
             <!-- Terminal Logs -->
             <aside id="terminal-sidebar">
                 <div class="terminal-header">
-                    <span>// SYSTEM LOGS</span>
+                    <span>// REGISTROS DO SISTEMA</span>
                     <div class="terminal-controls">
                         <span class="control-btn minimize"></span>
                         <span class="control-btn maximize"></span>
@@ -44,9 +44,9 @@
                     </div>
                 </div>
                 <div id="terminal-content">
-                    <p class="log system">[SYS] Boot sequence completed.</p>
-                    <p class="log system">[SYS] Secure channel established.</p>
-                    <p class="log system">[SYS] Ready for input.</p>
+                    <p class="log system">[SYS] Sequência de inicialização concluída.</p>
+                    <p class="log system">[SYS] Canal seguro estabelecido.</p>
+                    <p class="log system">[SYS] Aguardando entrada.</p>
                 </div>
             </aside>
         </main>

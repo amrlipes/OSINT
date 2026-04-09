@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Clean query to avoid spaces/ats breaking URLs
         query = query.replace('@', '').trim();
 
-        logToTerminal(`Initiating target acquisition for: <span class="highlight">${query}</span>`, 'info');
+        logToTerminal(`Iniciando obtenção de alvo para: <span class="highlight">${query}</span>`, 'info');
         inputField.value = '';
         
         if(canvasOverlay) {
@@ -61,17 +61,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function executeSearchSequence(query) {
-        logToTerminal('[API] Executing live OSINT data retrieval sequences...', 'system');
+        logToTerminal('[API] Executando sequências de busca de dados OSINT em tempo real...', 'system');
         await sleep(800);
 
         // Root Node
-        logToTerminal(`[SUCCESS] Root identity established for ${query}`, 'success');
+        logToTerminal(`[SUCESSO] Identidade raiz estabelecida para ${query}`, 'success');
         const rootNode = createNode({
-            title: 'ROOT TARGET',
+            title: 'ALVO RAIZ',
             icon: '🎯',
             data: {
-                Identifier: query,
-                Type: 'Username / Handle'
+                Identificador: query,
+                Tipo: 'Nome de usuário / Handle'
             },
             x: canvas.clientWidth / 2,
             y: canvas.clientHeight / 2,
@@ -81,37 +81,37 @@ document.addEventListener('DOMContentLoaded', () => {
         await sleep(1000);
 
         // --- 1. GitHub API (Legitimate Public API) ---
-        logToTerminal(`[INFO] Fetching real data from GitHub Public API...`, 'warning');
+        logToTerminal(`[INFO] Buscando dados reais na API Pública do GitHub...`, 'warning');
         try {
             const ghResponse = await fetch(`https://api.github.com/users/${query}`);
             if (ghResponse.ok) {
                 const ghData = await ghResponse.json();
-                logToTerminal(`[SUCCESS] GitHub profile identified and validated!`, 'success');
+                logToTerminal(`[SUCESSO] Perfil do GitHub identificado e validado!`, 'success');
                 
                 const ghNode = createNode({
                     title: 'GITHUB',
                     icon: '</>',
                     avatar: ghData.avatar_url,
                     url: ghData.html_url,
-                    btnText: 'Acess Repository',
+                    btnText: 'Acessar Repositório',
                     data: {
-                        Name: ghData.name || 'Not provided',
-                        Company: ghData.company || 'Not provided',
-                        Location: ghData.location || 'Unknown',
-                        Public_Repos: ghData.public_repos,
-                        Followers: ghData.followers
+                        Nome: ghData.name || 'Não informado',
+                        Empresa: ghData.company || 'Não informado',
+                        Localização: ghData.location || 'Desconhecido',
+                        'Repositórios Públicos': ghData.public_repos,
+                        Seguidores: ghData.followers
                     },
                     x: canvas.clientWidth / 2 - 300,
                     y: canvas.clientHeight / 2 - 150
                 });
                 drawConnection(rootNode, ghNode);
             } else if (ghResponse.status === 404) {
-                logToTerminal(`[ERROR] No GitHub account matches this handle.`, 'error');
+                logToTerminal(`[ERRO] Nenhuma conta do GitHub corresponde a este usuário.`, 'error');
             } else {
-                logToTerminal(`[ERROR] GitHub API returned status ${ghResponse.status}`, 'error');
+                logToTerminal(`[ERRO] A API do GitHub retornou o status ${ghResponse.status}`, 'error');
             }
         } catch (e) {
-            logToTerminal(`[ERROR] Failed to reach GitHub API.`, 'error');
+            logToTerminal(`[ERRO] Falha ao se conectar com a API do GitHub.`, 'error');
         }
 
         await sleep(500);
@@ -119,15 +119,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- 2. Instagram (External Redirect) ---
         // Since scraping from frontend violates CORS and generating fakes is prohibited,
         // we provide a verification node that safely redirects.
-        logToTerminal(`[INFO] Creating Instagram verification Node (Cross-Origin Policy)...`, 'warning');
+        logToTerminal(`[INFO] Criando Nó de verificação do Instagram (Política Cross-Origin)...`, 'warning');
         const igNode = createNode({
             title: 'INSTAGRAM',
             icon: 'IG',
             url: `https://www.instagram.com/${query}/`,
-            btnText: 'Verify Instagram Profile',
+            btnText: 'Verificar Perfil do Instagram',
             data: {
-                Status: 'Awaiting User Verification',
-                Notice: 'Cannot fetch live data without Auth'
+                Status: 'Aguardando Verificação do Usuário',
+                Aviso: 'Impossível buscar dados em tempo real sem Autenticação'
             },
             x: canvas.clientWidth / 2 + 250,
             y: canvas.clientHeight / 2 - 150
@@ -137,14 +137,14 @@ document.addEventListener('DOMContentLoaded', () => {
         await sleep(500);
 
         // --- 3. Twitter / X (External Redirect) ---
-        logToTerminal(`[INFO] Creating X (Twitter) verification Node...`, 'warning');
+        logToTerminal(`[INFO] Criando Nó de verificação do X (Twitter)...`, 'warning');
         const xNode = createNode({
             title: 'X (TWITTER)',
             icon: 'X',
             url: `https://twitter.com/${query}`,
-            btnText: 'Verify X Profile',
+            btnText: 'Verificar Perfil no X',
             data: {
-                Status: 'Awaiting User Verification'
+                Status: 'Aguardando Verificação do Usuário'
             },
             x: canvas.clientWidth / 2 + 250,
             y: canvas.clientHeight / 2 + 100
@@ -152,21 +152,21 @@ document.addEventListener('DOMContentLoaded', () => {
         drawConnection(rootNode, xNode);
 
         // --- 4. Google Dorking (External Redirect) ---
-        logToTerminal(`[INFO] Generating Google Dorking advanced search...`, 'system');
+        logToTerminal(`[INFO] Gerando pesquisa avançada via Google Dorking...`, 'system');
         const dorkNode = createNode({
-            title: 'WEB INDEX (DORK)',
+            title: 'ÍNDICE WEB (DORK)',
             icon: '🔍',
             url: `https://www.google.com/search?q="${query}"+OR+inurl:${query}`,
-            btnText: 'Execute Google Dork',
+            btnText: 'Executar Google Dork',
             data: {
-                Technique: 'Exact Match & InUrl Search'
+                Técnica: 'Correspondência Exata / InUrl'
             },
             x: canvas.clientWidth / 2 - 300,
             y: canvas.clientHeight / 2 + 150
         });
         drawConnection(rootNode, dorkNode);
         
-        logToTerminal(`[SYS] Sequence Complete. Awaiting manual validation.`, 'system');
+        logToTerminal(`[SYS] Sequência Concluída. Aguardando validação manual.`, 'system');
     }
 
     function createNode(info) {
@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let actionHTML = '';
         if(!info.hideActions && info.url) {
-            let bText = info.btnText || 'Open Link';
+            let bText = info.btnText || 'Abrir Link';
             actionHTML = `
             <div class="node-actions">
                 <a href="${info.url}" target="_blank" class="node-btn">${bText}</a>
