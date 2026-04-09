@@ -311,6 +311,46 @@ body {
     color: var(--text-main);
 }
 
+.node-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    border-top: 1px dotted rgba(0,255,204, 0.2);
+    padding-top: 10px;
+}
+
+.node-btn {
+    background: transparent;
+    border: 1px solid var(--accent-primary);
+    color: var(--accent-primary);
+    padding: 5px 10px;
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    flex-grow: 1;
+    transition: all 0.2s ease;
+}
+
+.node-btn:hover {
+    background: var(--accent-primary);
+    color: #000;
+}
+
+.node-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    margin-right: 10px;
+    border: 1px solid var(--accent-primary);
+}
+
+.node-header-info {
+    display: flex;
+    flex-direction: column;
+}
+
 /* SVG Lines between nodes */
 #canvas-lines {
     position: absolute;
