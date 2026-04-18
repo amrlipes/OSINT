@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function executeSearchSequence(query, type) {
-        logToTerminal(`[API] Compilando painel de fontes para o tipo: ${type.toUpperCase()}...`, 'system');
+        logToTerminal(`[API] Solicitando varredura real no Backend para: ${type.toUpperCase()}...`, 'system');
         
         // Dashboard Header
         const headerHTML = `
@@ -73,133 +73,80 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="dashboard-title">Painel de Inteligência OSINT</div>
                 <div class="target-info">ALVO: ${query}</div>
             </div>
+            <div id="results-loader" style="text-align: center; color: var(--accent-primary); margin-top: 20px;">
+                <div class="dot blinking" style="display: inline-block;"></div> Processando varredura na web... Isso pode demorar alguns segundos.
+            </div>
         `;
         dashboard.innerHTML = headerHTML;
 
-        await sleep(800);
+        try {
+            if (!['username', 'email', 'name'].includes(type)) {
+                logToTerminal(`[AVISO] Busca em massa para '${type}' ainda não implementada no backend.`, 'warning');
+                document.getElementById('results-loader').innerHTML = 'Busca indisponível para este tipo.';
+                return;
+            }
 
-        // Define sources based on type
-        let categories = [];
+            const response = await fetch(`/api/osint/${type}?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            
+            const loader = document.getElementById('results-loader');
+            if(loader) loader.remove();
 
-        if (type === 'username') {
-            categories = [
-                {
-                    title: 'Redes Sociais & Perfis',
-                    icon: '🌐',
-                    sources: [
-                        { name: 'Instagram', desc: 'Verificar perfil público via Web', icon: 'IG', url: `https://www.instagram.com/${query}/` },
-                        { name: 'X (Twitter)', desc: 'Análise de perfil, tweets e conexões', icon: 'X', url: `https://twitter.com/${query}` },
-                        { name: 'GitHub', desc: 'Repositórios públicos e código', icon: '</>', url: `https://github.com/${query}` },
-                        { name: 'TikTok', desc: 'Presença e conteúdo em vídeos curtos', icon: 'TK', url: `https://www.tiktok.com/@${query}` },
-                    ]
-                },
-                {
-                    title: 'Buscadores & Agregadores',
-                    icon: '🔍',
-                    sources: [
-                        { name: 'Namechk', desc: 'Verificar disponibilidade em centenas de sites', icon: 'NC', url: `https://namechk.com/?q=${query}` },
-                        { name: 'Google Dork', desc: 'Correspondência exata em todos os índices', icon: 'G', url: `https://www.google.com/search?q="${query}"` }
-                    ]
-                }
-            ];
-        } else if (type === 'email') {
-            categories = [
-                {
-                    title: 'Vazamentos & Brechas',
-                    icon: '🔓',
-                    sources: [
-                        { name: 'Have I Been Pwned', desc: 'Checar presença em vazamentos públicos de dados', icon: 'HP', url: `https://haveibeenpwned.com/account/${query}` },
-                        { name: 'DeHashed', desc: 'Busca reversa profunda de credenciais (Requer login)', icon: 'DH', url: `https://www.dehashed.com/search?query=${query}` }
-                    ]
-                },
-                {
-                    title: 'Busca Reversa',
-                    icon: '🔄',
-                    sources: [
-                        { name: 'Epios', desc: 'Verificar serviços associados à conta Google/Skype', icon: 'EP', url: `https://epios.com/` },
-                        { name: 'Google Dork', desc: 'Menções diretas ao e-mail em fóruns ou sites', icon: 'G', url: `https://www.google.com/search?q="${query}"` }
-                    ]
-                }
-            ];
-        } else if (type === 'phone') {
-            categories = [
-                {
-                    title: 'Identificadores de Chamadas',
-                    icon: '📱',
-                    sources: [
-                        { name: 'Truecaller', desc: 'Verificar identificação global de chamador', icon: 'TC', url: `https://www.truecaller.com/search/global/${query.replace(/\D/g,'')}` },
-                        { name: 'Sync.ME', desc: 'Busca de contatos e redes sociais vinculadas', icon: 'SM', url: `https://sync.me/search/?number=${query.replace(/\D/g,'')}` }
-                    ]
-                },
-                {
-                    title: 'Aplicativos de Mensagens',
-                    icon: '💬',
-                    sources: [
-                        { name: 'WhatsApp API', desc: 'Verificar foto de perfil iniciando conversa', icon: 'WA', url: `https://wa.me/${query.replace(/\D/g,'')}` },
-                        { name: 'Telegram', desc: 'Buscar número no Telegram Web', icon: 'TG', url: `https://t.me/+${query.replace(/\D/g,'')}` }
-                    ]
-                }
-            ];
-        } else if (type === 'name') {
-            categories = [
-                {
-                    title: 'Registros Públicos & Jurídicos',
-                    icon: '🏛',
-                    sources: [
-                        { name: 'Portal da Transparência', desc: 'Buscador de entes e servidores federais', icon: 'PT', url: `https://portaldatransparencia.gov.br/busca?termo=${query}` },
-                        { name: 'Jusbrasil', desc: 'Verificar citações em processos e diários oficiais', icon: 'JB', url: `https://www.jusbrasil.com.br/consulta-processual/busca?q=${query}` }
-                    ]
-                },
-                {
-                    title: 'Busca Geral & Notícias',
-                    icon: '🌐',
-                    sources: [
-                        { name: 'Google News', desc: 'Menções jornalísticas sobre a pessoa', icon: 'GN', url: `https://news.google.com/search?q="${query}"` },
-                        { name: 'LinkedIn', desc: 'Perfis profissionais com este nome', icon: 'IN', url: `https://www.linkedin.com/search/results/people/?keywords=${query}` }
-                    ]
-                }
-            ];
-        }
+            if (data.error) {
+                logToTerminal(`[ERRO] Backend: ${data.error}`, 'error');
+                return;
+            }
 
-        // Render categories dynamically
-        categories.forEach((cat, idx) => {
-            setTimeout(() => {
-                logToTerminal(`[INFO] Injetando módulo de coleta: ${cat.title}...`, 'warning');
-                
-                let sourcesHTML = '';
-                cat.sources.forEach(source => {
-                    sourcesHTML += `
-                        <div class="source-card">
-                            <div class="source-header">
-                                <div class="source-icon">${source.icon}</div>
-                                <span>${source.name}</span>
+            if (!data.results || data.results.length === 0) {
+                logToTerminal(`[INFO] Nenhum rastro direto encontrado em fontes abertas primárias.`, 'warning');
+                return;
+            }
+
+            // Render categories dynamically from Backend results
+            data.results.forEach((result, idx) => {
+                setTimeout(() => {
+                    logToTerminal(`[INFO] Novo bloco de dados extraído: ${result.source}`, 'success');
+                    
+                    let detailsHTML = '';
+                    if (result.details) {
+                        for (const [key, val] of Object.entries(result.details)) {
+                            // Se for link, formata para ser clicável
+                            if (typeof val === 'string' && val.startsWith('http')) {
+                                detailsHTML += `<div style="margin-bottom:8px; padding-left:10px; border-left:2px solid var(--accent-primary)"><strong>${key}:</strong> <br> <a href="${val}" target="_blank" style="color:var(--text-main); font-size:0.8rem; word-break: break-all; text-decoration: none;">${val}</a></div>`;
+                            } else {
+                                detailsHTML += `<div style="margin-bottom:8px;"><strong>${key}:</strong> <span style="color:var(--text-main)">${val}</span></div>`;
+                            }
+                        }
+                    }
+
+                    const section = document.createElement('div');
+                    section.className = 'category-section';
+                    section.innerHTML = `
+                        <div class="category-title"><span style="font-size: 1.5rem">${result.icon}</span> ${result.source}</div>
+                        <div class="source-card" style="margin-top: 10px;">
+                            <div class="source-desc" style="font-size:1rem; margin-bottom:15px; color: var(--accent-primary);">${result.desc}</div>
+                            <div class="source-details" style="font-family: var(--font-code); font-size:0.9rem; color:var(--text-muted); background:rgba(0,0,0,0.5); padding:10px; border-radius:3px; max-height: 250px; overflow-y: auto;">
+                                ${detailsHTML}
                             </div>
-                            <div class="source-desc">${source.desc}</div>
-                            <a href="${source.url}" target="_blank" class="source-btn">Acessar Fonte ➔</a>
+                            <a href="${result.url}" target="_blank" class="source-btn" style="margin-top: 15px; width: max-content; padding: 10px 20px;">ABRIR FONTE ORIGINÁRIA ➔</a>
                         </div>
                     `;
-                });
-
-                const section = document.createElement('div');
-                section.className = 'category-section';
-                section.innerHTML = `
-                    <div class="category-title"><span style="font-size: 1.5rem">${cat.icon}</span> ${cat.title}</div>
-                    <div class="sources-grid">
-                        ${sourcesHTML}
-                    </div>
-                `;
-                dashboard.appendChild(section);
-                
-                // Scroll to bottom of dashboard automatically
-                dashboard.scrollTop = dashboard.scrollHeight;
-                
-            }, idx * 600); // Stagger the rendering for visual loading effect
-        });
-        
-        const totalDelay = categories.length * 600 + 500;
-        setTimeout(() => {
-            logToTerminal(`[SUCESSO] Painel de Inteligência concluído. Fontes prontas para redirecionamento.`, 'success');
-        }, totalDelay);
+                    dashboard.appendChild(section);
+                    dashboard.scrollTop = dashboard.scrollHeight;
+                    
+                }, idx * 800); // Stagger the rendering for visual loading effect
+            });
+            
+            const totalDelay = data.results.length * 800 + 500;
+            setTimeout(() => {
+                logToTerminal(`[SUCESSO] Coleta OSINT finalizada no alvo.`, 'success');
+            }, totalDelay);
+            
+        } catch (error) {
+            logToTerminal(`[ERRO FATAL] Falha de conexão com o Python. O servidor Flask está rodando?`, 'error');
+            const loader = document.getElementById('results-loader');
+            if(loader) loader.innerHTML = 'Falha na conexão com o servidor Inteligência (Backend).';
+        }
     }
 
     function sleep(ms) {
