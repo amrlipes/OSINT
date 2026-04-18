@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const terminal = document.getElementById('terminal-content');
-    const canvas = document.getElementById('node-canvas');
-    const canvasOverlay = document.querySelector('.canvas-overlay');
+    const dashboard = document.getElementById('results-dashboard');
     
     // Buttons and Inputs
     const btnUsername = document.getElementById('btn-username');
@@ -15,14 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const btnPhone = document.getElementById('btn-phone');
     const inputPhone = document.getElementById('phone-input');
-
-    // Create an SVG element for lines
-    const svgLines = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svgLines.id = 'canvas-lines';
-    canvas.appendChild(svgLines);
-
-    let nodes = [];
-    let connections = [];
 
     // Helper: Write to terminal
     function logToTerminal(message, type = 'info') {
@@ -55,11 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
             logToTerminal(`Iniciando rastreio [${type.toUpperCase()}] para alvo: <span class="highlight">${query}</span>`, 'info');
             input.value = '';
             
-            if(canvasOverlay) {
-                canvasOverlay.style.display = 'none';
-            }
-
-            clearCanvas();
+            clearDashboard();
             executeSearchSequence(query, type);
         });
 
@@ -73,243 +60,146 @@ document.addEventListener('DOMContentLoaded', () => {
     setupModule(btnEmail, inputEmail, 'email');
     setupModule(btnPhone, inputPhone, 'phone');
 
-    function clearCanvas() {
-        nodes.forEach(n => n.element.remove());
-        svgLines.innerHTML = '';
-        nodes = [];
-        connections = [];
+    function clearDashboard() {
+        dashboard.innerHTML = '';
     }
 
-    async function executeSearchSequence(query, type = 'username') {
-        logToTerminal(`[API] Executando sequências de busca para o tipo: ${type.toUpperCase()}...`, 'system');
+    async function executeSearchSequence(query, type) {
+        logToTerminal(`[API] Compilando painel de fontes para o tipo: ${type.toUpperCase()}...`, 'system');
+        
+        // Dashboard Header
+        const headerHTML = `
+            <div class="dashboard-header">
+                <div class="dashboard-title">Painel de Inteligência OSINT</div>
+                <div class="target-info">ALVO: ${query}</div>
+            </div>
+        `;
+        dashboard.innerHTML = headerHTML;
+
         await sleep(800);
 
-        // Map type to display name
-        const typeNames = {
-            'username': 'Nome de usuário (Handle)',
-            'name': 'Nome Completo',
-            'email': 'Endereço de E-mail',
-            'phone': 'Número de Telefone'
-        };
+        // Define sources based on type
+        let categories = [];
 
-        // Root Node
-        logToTerminal(`[SUCESSO] Identidade raiz estabelecida para ${query}`, 'success');
-        const rootNode = createNode({
-            title: 'ALVO RAIZ',
-            icon: '🎯',
-            data: {
-                Identificador: query,
-                Tipo: typeNames[type] || 'Desconhecido'
-            },
-            x: canvas.clientWidth / 2,
-            y: canvas.clientHeight / 2,
-            hideActions: true
-        });
+        if (type === 'username') {
+            categories = [
+                {
+                    title: 'Redes Sociais & Perfis',
+                    icon: '🌐',
+                    sources: [
+                        { name: 'Instagram', desc: 'Verificar perfil público via Web', icon: 'IG', url: `https://www.instagram.com/${query}/` },
+                        { name: 'X (Twitter)', desc: 'Análise de perfil, tweets e conexões', icon: 'X', url: `https://twitter.com/${query}` },
+                        { name: 'GitHub', desc: 'Repositórios públicos e código', icon: '</>', url: `https://github.com/${query}` },
+                        { name: 'TikTok', desc: 'Presença e conteúdo em vídeos curtos', icon: 'TK', url: `https://www.tiktok.com/@${query}` },
+                    ]
+                },
+                {
+                    title: 'Buscadores & Agregadores',
+                    icon: '🔍',
+                    sources: [
+                        { name: 'Namechk', desc: 'Verificar disponibilidade em centenas de sites', icon: 'NC', url: `https://namechk.com/?q=${query}` },
+                        { name: 'Google Dork', desc: 'Correspondência exata em todos os índices', icon: 'G', url: `https://www.google.com/search?q="${query}"` }
+                    ]
+                }
+            ];
+        } else if (type === 'email') {
+            categories = [
+                {
+                    title: 'Vazamentos & Brechas',
+                    icon: '🔓',
+                    sources: [
+                        { name: 'Have I Been Pwned', desc: 'Checar presença em vazamentos públicos de dados', icon: 'HP', url: `https://haveibeenpwned.com/account/${query}` },
+                        { name: 'DeHashed', desc: 'Busca reversa profunda de credenciais (Requer login)', icon: 'DH', url: `https://www.dehashed.com/search?query=${query}` }
+                    ]
+                },
+                {
+                    title: 'Busca Reversa',
+                    icon: '🔄',
+                    sources: [
+                        { name: 'Epios', desc: 'Verificar serviços associados à conta Google/Skype', icon: 'EP', url: `https://epios.com/` },
+                        { name: 'Google Dork', desc: 'Menções diretas ao e-mail em fóruns ou sites', icon: 'G', url: `https://www.google.com/search?q="${query}"` }
+                    ]
+                }
+            ];
+        } else if (type === 'phone') {
+            categories = [
+                {
+                    title: 'Identificadores de Chamadas',
+                    icon: '📱',
+                    sources: [
+                        { name: 'Truecaller', desc: 'Verificar identificação global de chamador', icon: 'TC', url: `https://www.truecaller.com/search/global/${query.replace(/\D/g,'')}` },
+                        { name: 'Sync.ME', desc: 'Busca de contatos e redes sociais vinculadas', icon: 'SM', url: `https://sync.me/search/?number=${query.replace(/\D/g,'')}` }
+                    ]
+                },
+                {
+                    title: 'Aplicativos de Mensagens',
+                    icon: '💬',
+                    sources: [
+                        { name: 'WhatsApp API', desc: 'Verificar foto de perfil iniciando conversa', icon: 'WA', url: `https://wa.me/${query.replace(/\D/g,'')}` },
+                        { name: 'Telegram', desc: 'Buscar número no Telegram Web', icon: 'TG', url: `https://t.me/+${query.replace(/\D/g,'')}` }
+                    ]
+                }
+            ];
+        } else if (type === 'name') {
+            categories = [
+                {
+                    title: 'Registros Públicos & Jurídicos',
+                    icon: '🏛',
+                    sources: [
+                        { name: 'Portal da Transparência', desc: 'Buscador de entes e servidores federais', icon: 'PT', url: `https://portaldatransparencia.gov.br/busca?termo=${query}` },
+                        { name: 'Jusbrasil', desc: 'Verificar citações em processos e diários oficiais', icon: 'JB', url: `https://www.jusbrasil.com.br/consulta-processual/busca?q=${query}` }
+                    ]
+                },
+                {
+                    title: 'Busca Geral & Notícias',
+                    icon: '🌐',
+                    sources: [
+                        { name: 'Google News', desc: 'Menções jornalísticas sobre a pessoa', icon: 'GN', url: `https://news.google.com/search?q="${query}"` },
+                        { name: 'LinkedIn', desc: 'Perfis profissionais com este nome', icon: 'IN', url: `https://www.linkedin.com/search/results/people/?keywords=${query}` }
+                    ]
+                }
+            ];
+        }
 
-        await sleep(1000);
-
-        // --- 1. GitHub API (Legitimate Public API) ---
-        logToTerminal(`[INFO] Buscando dados reais na API Pública do GitHub...`, 'warning');
-        try {
-            const ghResponse = await fetch(`https://api.github.com/users/${query}`);
-            if (ghResponse.ok) {
-                const ghData = await ghResponse.json();
-                logToTerminal(`[SUCESSO] Perfil do GitHub identificado e validado!`, 'success');
+        // Render categories dynamically
+        categories.forEach((cat, idx) => {
+            setTimeout(() => {
+                logToTerminal(`[INFO] Injetando módulo de coleta: ${cat.title}...`, 'warning');
                 
-                const ghNode = createNode({
-                    title: 'GITHUB',
-                    icon: '</>',
-                    avatar: ghData.avatar_url,
-                    url: ghData.html_url,
-                    btnText: 'Acessar Repositório',
-                    data: {
-                        Nome: ghData.name || 'Não informado',
-                        Empresa: ghData.company || 'Não informado',
-                        Localização: ghData.location || 'Desconhecido',
-                        'Repositórios Públicos': ghData.public_repos,
-                        Seguidores: ghData.followers
-                    },
-                    x: canvas.clientWidth / 2 - 300,
-                    y: canvas.clientHeight / 2 - 150
+                let sourcesHTML = '';
+                cat.sources.forEach(source => {
+                    sourcesHTML += `
+                        <div class="source-card">
+                            <div class="source-header">
+                                <div class="source-icon">${source.icon}</div>
+                                <span>${source.name}</span>
+                            </div>
+                            <div class="source-desc">${source.desc}</div>
+                            <a href="${source.url}" target="_blank" class="source-btn">Acessar Fonte ➔</a>
+                        </div>
+                    `;
                 });
-                drawConnection(rootNode, ghNode);
-            } else if (ghResponse.status === 404) {
-                logToTerminal(`[ERRO] Nenhuma conta do GitHub corresponde a este usuário.`, 'error');
-            } else {
-                logToTerminal(`[ERRO] A API do GitHub retornou o status ${ghResponse.status}`, 'error');
-            }
-        } catch (e) {
-            logToTerminal(`[ERRO] Falha ao se conectar com a API do GitHub.`, 'error');
-        }
 
-        await sleep(500);
-
-        // --- 2. Instagram (External Redirect) ---
-        // Since scraping from frontend violates CORS and generating fakes is prohibited,
-        // we provide a verification node that safely redirects.
-        logToTerminal(`[INFO] Criando Nó de verificação do Instagram (Política Cross-Origin)...`, 'warning');
-        const igNode = createNode({
-            title: 'INSTAGRAM',
-            icon: 'IG',
-            url: `https://www.instagram.com/${query}/`,
-            btnText: 'Verificar Perfil do Instagram',
-            data: {
-                Status: 'Aguardando Verificação do Usuário',
-                Aviso: 'Impossível buscar dados em tempo real sem Autenticação'
-            },
-            x: canvas.clientWidth / 2 + 250,
-            y: canvas.clientHeight / 2 - 150
+                const section = document.createElement('div');
+                section.className = 'category-section';
+                section.innerHTML = `
+                    <div class="category-title"><span style="font-size: 1.5rem">${cat.icon}</span> ${cat.title}</div>
+                    <div class="sources-grid">
+                        ${sourcesHTML}
+                    </div>
+                `;
+                dashboard.appendChild(section);
+                
+                // Scroll to bottom of dashboard automatically
+                dashboard.scrollTop = dashboard.scrollHeight;
+                
+            }, idx * 600); // Stagger the rendering for visual loading effect
         });
-        drawConnection(rootNode, igNode);
-
-        await sleep(500);
-
-        // --- 3. Twitter / X (External Redirect) ---
-        logToTerminal(`[INFO] Criando Nó de verificação do X (Twitter)...`, 'warning');
-        const xNode = createNode({
-            title: 'X (TWITTER)',
-            icon: 'X',
-            url: `https://twitter.com/${query}`,
-            btnText: 'Verificar Perfil no X',
-            data: {
-                Status: 'Aguardando Verificação do Usuário'
-            },
-            x: canvas.clientWidth / 2 + 250,
-            y: canvas.clientHeight / 2 + 100
-        });
-        drawConnection(rootNode, xNode);
-
-        // --- 4. Google Dorking (External Redirect) ---
-        logToTerminal(`[INFO] Gerando pesquisa avançada via Google Dorking...`, 'system');
-        const dorkNode = createNode({
-            title: 'ÍNDICE WEB (DORK)',
-            icon: '🔍',
-            url: `https://www.google.com/search?q="${query}"+OR+inurl:${query}`,
-            btnText: 'Executar Google Dork',
-            data: {
-                Técnica: 'Correspondência Exata / InUrl'
-            },
-            x: canvas.clientWidth / 2 - 300,
-            y: canvas.clientHeight / 2 + 150
-        });
-        drawConnection(rootNode, dorkNode);
         
-        logToTerminal(`[SYS] Sequência Concluída. Aguardando validação manual.`, 'system');
-    }
-
-    function createNode(info) {
-        const nodeEl = document.createElement('div');
-        nodeEl.className = 'node';
-        nodeEl.style.left = `${info.x}px`;
-        nodeEl.style.top = `${info.y}px`;
-
-        let detailsHTML = '';
-        if(info.data) {
-            for (const [key, value] of Object.entries(info.data)) {
-                detailsHTML += `<div class="node-detail"><strong>${key}:</strong> ${value}</div>`;
-            }
-        }
-
-        let headerHTML = `
-            <div class="node-icon">${info.icon}</div>
-            <div class="node-header-info">
-                <div class="node-title">${info.title}</div>
-            </div>
-        `;
-        
-        if(info.avatar) {
-            headerHTML = `<img src="${info.avatar}" class="node-avatar" alt="avatar">` + headerHTML;
-        }
-
-        let actionHTML = '';
-        if(!info.hideActions && info.url) {
-            let bText = info.btnText || 'Abrir Link';
-            actionHTML = `
-            <div class="node-actions">
-                <a href="${info.url}" target="_blank" class="node-btn">${bText}</a>
-            </div>`;
-        }
-
-        nodeEl.innerHTML = `
-            <div class="node-header">
-                ${headerHTML}
-            </div>
-            <div class="node-body">
-                ${detailsHTML}
-            </div>
-            ${actionHTML}
-        `;
-
-        canvas.appendChild(nodeEl);
-        
-        const nodeObj = { id: Date.now(), element: nodeEl, x: info.x, y: info.y, info: info };
-        nodes.push(nodeObj);
-
-        // Make node draggable
-        makeDraggable(nodeObj);
-
-        return nodeObj;
-    }
-
-    // Function to draw lines between nodes
-    function drawConnection(nodeA, nodeB) {
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('class', 'connection-line');
-        line.setAttribute('x1', nodeA.x);
-        line.setAttribute('y1', nodeA.y);
-        line.setAttribute('x2', nodeB.x);
-        line.setAttribute('y2', nodeB.y);
-        
-        svgLines.appendChild(line);
-        connections.push({ line, nodeA, nodeB });
-    }
-
-    // Handle dragging of nodes on the canvas
-    function makeDraggable(nodeObj) {
-        let isDragging = false;
-        let startX, startY;
-
-        nodeObj.element.addEventListener('mousedown', (e) => {
-            // Prevent dragging from propagating if we clicked the button
-            if (e.target.tagName.toLowerCase() === 'a' || e.target.classList.contains('node-btn')) {
-                return;
-            }
-
-            isDragging = true;
-            nodeObj.element.dataset.dragging = "false";
-            startX = e.clientX - nodeObj.x;
-            startY = e.clientY - nodeObj.y;
-            nodeObj.element.style.zIndex = 100;
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            nodeObj.element.dataset.dragging = "true";
-            nodeObj.x = e.clientX - startX;
-            nodeObj.y = e.clientY - startY;
-            nodeObj.element.style.left = `${nodeObj.x}px`;
-            nodeObj.element.style.top = `${nodeObj.y}px`;
-            
-            updateConnections();
-        });
-
-        document.addEventListener('mouseup', () => {
-            if(isDragging) {
-                isDragging = false;
-                nodeObj.element.style.zIndex = 10;
-                // reset dragging flag if moved very little to allow clicks
-                setTimeout(() => { nodeObj.element.dataset.dragging = "false"; }, 50);
-            }
-        });
-    }
-
-    function updateConnections() {
-        connections.forEach(conn => {
-            conn.line.setAttribute('x1', conn.nodeA.x);
-            conn.line.setAttribute('y1', conn.nodeA.y);
-            conn.line.setAttribute('x2', conn.nodeB.x);
-            conn.line.setAttribute('y2', conn.nodeB.y);
-        });
+        const totalDelay = categories.length * 600 + 500;
+        setTimeout(() => {
+            logToTerminal(`[SUCESSO] Painel de Inteligência concluído. Fontes prontas para redirecionamento.`, 'success');
+        }, totalDelay);
     }
 
     function sleep(ms) {
