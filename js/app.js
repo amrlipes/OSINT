@@ -1,10 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const searchBtn = document.getElementById('search-btn');
-    const inputField = document.getElementById('target-input');
     const terminal = document.getElementById('terminal-content');
     const canvas = document.getElementById('node-canvas');
     const canvasOverlay = document.querySelector('.canvas-overlay');
     
+    // Buttons and Inputs
+    const btnUsername = document.getElementById('btn-username');
+    const inputUsername = document.getElementById('username-input');
+    
+    const btnName = document.getElementById('btn-name');
+    const inputName = document.getElementById('name-input');
+    
+    const btnEmail = document.getElementById('btn-email');
+    const inputEmail = document.getElementById('email-input');
+    
+    const btnPhone = document.getElementById('btn-phone');
+    const inputPhone = document.getElementById('phone-input');
+
     // Create an SVG element for lines
     const svgLines = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svgLines.id = 'canvas-lines';
@@ -27,31 +38,40 @@ document.addEventListener('DOMContentLoaded', () => {
         terminal.scrollTop = terminal.scrollHeight;
     }
 
-    // Handle Search click
-    searchBtn.addEventListener('click', () => {
-        let query = inputField.value.trim();
-        if(!query) return;
-
-        // Clean query to avoid spaces/ats breaking URLs
-        query = query.replace('@', '').trim();
-
-        logToTerminal(`Iniciando obtenção de alvo para: <span class="highlight">${query}</span>`, 'info');
-        inputField.value = '';
+    // Setup Event Listeners for each module
+    function setupModule(btn, input, type) {
+        if (!btn || !input) return;
         
-        if(canvasOverlay) {
-            canvasOverlay.style.display = 'none';
-        }
+        btn.addEventListener('click', () => {
+            let query = input.value.trim();
+            if(!query) {
+                logToTerminal(`[ERRO] Campo de ${type} vazio. Insira um valor.`, 'error');
+                return;
+            }
 
-        // Clear canvas for a new root search
-        clearCanvas();
+            // Basic clean up
+            if (type === 'username') query = query.replace('@', '').trim();
 
-        // Start search sequence using legitimate public endpoints
-        executeSearchSequence(query);
-    });
+            logToTerminal(`Iniciando rastreio [${type.toUpperCase()}] para alvo: <span class="highlight">${query}</span>`, 'info');
+            input.value = '';
+            
+            if(canvasOverlay) {
+                canvasOverlay.style.display = 'none';
+            }
 
-    inputField.addEventListener('keypress', (e) => {
-        if(e.key === 'Enter') searchBtn.click();
-    });
+            clearCanvas();
+            executeSearchSequence(query, type);
+        });
+
+        input.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') btn.click();
+        });
+    }
+
+    setupModule(btnUsername, inputUsername, 'username');
+    setupModule(btnName, inputName, 'name');
+    setupModule(btnEmail, inputEmail, 'email');
+    setupModule(btnPhone, inputPhone, 'phone');
 
     function clearCanvas() {
         nodes.forEach(n => n.element.remove());
@@ -60,9 +80,17 @@ document.addEventListener('DOMContentLoaded', () => {
         connections = [];
     }
 
-    async function executeSearchSequence(query) {
-        logToTerminal('[API] Executando sequências de busca de dados OSINT em tempo real...', 'system');
+    async function executeSearchSequence(query, type = 'username') {
+        logToTerminal(`[API] Executando sequências de busca para o tipo: ${type.toUpperCase()}...`, 'system');
         await sleep(800);
+
+        // Map type to display name
+        const typeNames = {
+            'username': 'Nome de usuário (Handle)',
+            'name': 'Nome Completo',
+            'email': 'Endereço de E-mail',
+            'phone': 'Número de Telefone'
+        };
 
         // Root Node
         logToTerminal(`[SUCESSO] Identidade raiz estabelecida para ${query}`, 'success');
@@ -71,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
             icon: '🎯',
             data: {
                 Identificador: query,
-                Tipo: 'Nome de usuário / Handle'
+                Tipo: typeNames[type] || 'Desconhecido'
             },
             x: canvas.clientWidth / 2,
             y: canvas.clientHeight / 2,
