@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const response = await fetch(`/api/osint/${type}?q=${encodeURIComponent(query)}`);
+            const response = await fetch(`http://127.0.0.1:5000/api/osint/${type}?q=${encodeURIComponent(query)}`);
             const data = await response.json();
             
             const loader = document.getElementById('results-loader');
