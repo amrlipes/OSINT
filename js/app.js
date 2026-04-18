@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const links = [];
-        const resultTags = doc.querySelectorAll('a.result__url');
+        const resultTags = doc.querySelectorAll('.result__snippet, .result__url');
         
         resultTags.forEach(a => {
             let href = a.getAttribute('href');
@@ -93,20 +93,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 links.push(href.trim());
             }
         });
-        return [...new Set(links)].slice(0, 5); // Return up to 5 unique links
+        return [...new Set(links)].slice(0, 5);
     }
 
     async function executeSearchSequence(query, type) {
-        logToTerminal(`[API] Iniciando Rastreio Web via Rede Proxy para: ${type.toUpperCase()}...`, 'system');
+        logToTerminal(`[API] Iniciando Rastreio Multicamadas para: ${type.toUpperCase()}...`, 'system');
         
-        // Dashboard Header
         const headerHTML = `
             <div class="dashboard-header">
                 <div class="dashboard-title">Painel de Inteligência OSINT</div>
                 <div class="target-info">ALVO: ${query}</div>
             </div>
             <div id="results-loader" style="text-align: center; color: var(--accent-primary); margin-top: 20px;">
-                <div class="dot blinking" style="display: inline-block;"></div> Bypass de CORS Ativado. Minerando dados da Web...
+                <div class="dot blinking" style="display: inline-block;"></div> Acessando bancos de dados públicos e web proxy...
             </div>
         `;
         dashboard.innerHTML = headerHTML;
@@ -114,85 +113,76 @@ document.addEventListener('DOMContentLoaded', () => {
         let results = [];
 
         try {
-            if (type === 'username') {
-                // 1. GitHub API Direta
+            if (type === 'username' || type === 'name') {
+                logToTerminal(`[INFO] Consultando bases de dados do GitHub...`, 'warning');
                 try {
-                    const ghRes = await fetch(`https://api.github.com/users/${query}`);
+                    const ghRes = await fetch(`https://api.github.com/search/users?q=${encodeURIComponent(query)}&per_page=5`);
                     if (ghRes.ok) {
-                        const data = await ghRes.json();
-                        results.push({
-                            source: "GitHub",
-                            icon: "</>",
-                            desc: "Perfil de desenvolvedor encontrado nativamente.",
-                            url: data.html_url,
-                            details: {
-                                "Nome Real": data.name || "Não informado",
-                                "Empresa": data.company || "Não informado",
-                                "Localização": data.location || "Não informado",
-                                "Repositórios": data.public_repos
-                            }
-                        });
+                        const ghData = await ghRes.json();
+                        if (ghData.items && ghData.items.length > 0) {
+                            let ghDetails = {};
+                            ghData.items.forEach((item, i) => {
+                                ghDetails[`Perfil ${i+1} (${item.login})`] = item.html_url;
+                            });
+                            results.push({
+                                source: "Repositórios de Código (GitHub)",
+                                icon: "</>",
+                                desc: `Foram localizadas ${ghData.total_count} contas correspondentes na plataforma.`,
+                                url: `https://github.com/search?q=${encodeURIComponent(query)}&type=users`,
+                                details: ghDetails
+                            });
+                        }
                     }
-                } catch (e) {}
+                } catch(e) {}
 
-                // 2. Scraping Dork
-                logToTerminal(`[INFO] Coletando pegadas digitais usando índice web...`, 'warning');
-                const dorks = await duckduckgoSearch(`"${query}"`);
-                if (dorks.length > 0) {
-                    let dorkDetails = {};
-                    dorks.forEach((link, i) => dorkDetails[`Menção ${i+1}`] = link);
-                    results.push({
-                        source: "Pegadas na Web (Dork)",
-                        icon: "🔍",
-                        desc: `Encontramos ${dorks.length} sites citando este username.`,
-                        url: `https://duckduckgo.com/?q=%22${query}%22`,
-                        details: dorkDetails
-                    });
-                }
+                logToTerminal(`[INFO] Analisando Enciclopédia Pública...`, 'warning');
+                try {
+                    const wikiRes = await fetch(`https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&utf8=&format=json&origin=*`);
+                    if (wikiRes.ok) {
+                        const wikiData = await wikiRes.json();
+                        if (wikiData.query && wikiData.query.search && wikiData.query.search.length > 0) {
+                            let wikiDetails = {};
+                            wikiData.query.search.slice(0, 5).forEach((item, i) => {
+                                wikiDetails[`Artigo: ${item.title}`] = `https://pt.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/ /g, '_'))}`;
+                            });
+                            results.push({
+                                source: "Arquivos Enciclopédicos (Wikipedia)",
+                                icon: "🏛",
+                                desc: `Localizadas ${wikiData.query.searchinfo.totalhits} menções em registros históricos ou públicos.`,
+                                url: `https://pt.wikipedia.org/w/index.php?search=${encodeURIComponent(query)}`,
+                                details: wikiDetails
+                            });
+                        }
+                    }
+                } catch(e) {}
+            }
 
-            } else if (type === 'email') {
-                // Scraping de Email e PDFs
-                logToTerminal(`[INFO] Minerando texto claro e documentos vinculados ao E-mail...`, 'warning');
-                
-                const dorks = await duckduckgoSearch(`"${query}"`);
-                if (dorks.length > 0) {
-                    let dorkDetails = {};
-                    dorks.forEach((link, i) => dorkDetails[`Fonte ${i+1}`] = link);
-                    results.push({
-                        source: "Vazamentos / Índices Abertos",
-                        icon: "🔓",
-                        desc: `E-mail listado publicamente em ${dorks.length} páginas.`,
-                        url: `https://duckduckgo.com/?q=%22${query}%22`,
-                        details: dorkDetails
-                    });
-                }
+            logToTerminal(`[INFO] Minerando pegadas digitais na internet profunda...`, 'warning');
+            let dorkQuery = type === 'email' ? `"${query}"` : `"${query}"`;
+            const dorks = await duckduckgoSearch(dorkQuery);
+            if (dorks.length > 0) {
+                let dorkDetails = {};
+                dorks.forEach((link, i) => dorkDetails[`Fonte de Dados ${i+1}`] = link);
+                results.push({
+                    source: "Índice Web Aberto",
+                    icon: "🌐",
+                    desc: `Encontramos menções exatas ao alvo na rede primária.`,
+                    url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22`,
+                    details: dorkDetails
+                });
+            }
 
+            if (type === 'email' || type === 'name') {
                 const pdfs = await duckduckgoSearch(`"${query}" filetype:pdf`);
                 if (pdfs.length > 0) {
                     let pdfDetails = {};
                     pdfs.forEach((link, i) => pdfDetails[`Documento ${i+1}`] = link);
                     results.push({
-                        source: "Documentos Públicos (PDF)",
+                        source: "Documentos e Arquivos (PDF)",
                         icon: "📄",
-                        desc: `Foram encontrados PDFs oficiais contendo este e-mail.`,
-                        url: `https://duckduckgo.com/?q=%22${query}%22+filetype%3Apdf`,
+                        desc: `Identificados registros em formato PDF contendo as credenciais.`,
+                        url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22+filetype%3Apdf`,
                         details: pdfDetails
-                    });
-                }
-
-            } else if (type === 'name' || type === 'phone') {
-                // Busca geral de menções e documentos
-                logToTerminal(`[INFO] Vasculhando registros para o alvo...`, 'warning');
-                const dorks = await duckduckgoSearch(`"${query}"`);
-                if (dorks.length > 0) {
-                    let dorkDetails = {};
-                    dorks.forEach((link, i) => dorkDetails[`Registro ${i+1}`] = link);
-                    results.push({
-                        source: "Registros e Mídia",
-                        icon: "📰",
-                        desc: "Foram encontrados registros indexados compatíveis.",
-                        url: `https://duckduckgo.com/?q=%22${query}%22`,
-                        details: dorkDetails
                     });
                 }
             }
@@ -202,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (results.length === 0) {
                 logToTerminal(`[INFO] Nenhum rastro direto encontrado na rede primária.`, 'warning');
-                dashboard.innerHTML += `<div style="text-align:center; color:var(--text-muted); margin-top:30px;">Nenhum dado claro encontrado em fontes primárias.</div>`;
+                dashboard.innerHTML += `<div style="text-align:center; color:var(--text-muted); margin-top:30px; font-size: 1.1rem; border: 1px dashed var(--accent-primary); padding: 20px;">Nenhum dado claro encontrado nas bases conectadas. <br><br> <span style="font-size:0.9rem; color:#fff;">Tente buscar nomes com aspas (ex: "Felipe Amaro") ou utilize e-mails alternativos.</span></div>`;
                 return;
             }
 
@@ -246,10 +236,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }, totalDelay);
             
         } catch (error) {
-            logToTerminal(`[ERRO FATAL] Falha durante o roteamento do Proxy.`, 'error');
+            logToTerminal(`[ERRO FATAL] Falha de comunicação.`, 'error');
             console.error(error);
             const loader = document.getElementById('results-loader');
-            if(loader) loader.innerHTML = 'Falha na conexão com a rede de proxy aberta.';
+            if(loader) loader.innerHTML = 'Falha na conexão com a rede de dados.';
         }
     }
 
