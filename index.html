@@ -14,10 +14,38 @@
             <div class="logo">
                 <span class="glitch" data-text="NEXUS_OS">NEXUS_OS</span><span class="version">v1.0.0</span>
             </div>
-            <div class="search-container">
-                <span class="prompt-symbol">></span>
-                <input type="text" id="target-input" placeholder="Digite o @username, nome real, ou e-mail..." autocomplete="off" spellcheck="false">
-                <button id="search-btn">INICIAR</button>
+            <div class="search-panel">
+                <div class="input-group">
+                    <label for="username-input">Username</label>
+                    <div class="input-wrapper">
+                        <span class="prompt-symbol">@</span>
+                        <input type="text" id="username-input" placeholder="ex: @johndoe" autocomplete="off" spellcheck="false">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="name-input">Nome Real</label>
+                    <div class="input-wrapper">
+                        <span class="prompt-symbol">></span>
+                        <input type="text" id="name-input" placeholder="ex: John Doe" autocomplete="off" spellcheck="false">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="email-input">E-mail</label>
+                    <div class="input-wrapper">
+                        <span class="prompt-symbol">✉</span>
+                        <input type="email" id="email-input" placeholder="ex: john@email.com" autocomplete="off" spellcheck="false">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="phone-input">Telefone</label>
+                    <div class="input-wrapper">
+                        <span class="prompt-symbol">#</span>
+                        <input type="text" id="phone-input" placeholder="ex: +55 11 9..." autocomplete="off" spellcheck="false">
+                    </div>
+                </div>
+                <div class="action-group">
+                    <button id="search-btn">EXECUTAR</button>
+                </div>
             </div>
             <div class="status-indicator">
                 <div class="dot blinking"></div>
