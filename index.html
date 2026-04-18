@@ -9,49 +9,63 @@
 </head>
 <body>
     <div id="app-container">
-        <!-- Header / Search Bar -->
+        <!-- Header -->
         <header id="top-bar">
             <div class="logo">
                 <span class="glitch" data-text="NEXUS_OS">NEXUS_OS</span><span class="version">v1.0.0</span>
-            </div>
-            <div class="search-panel">
-                <div class="input-group">
-                    <label for="username-input">Username</label>
-                    <div class="input-wrapper">
-                        <span class="prompt-symbol">@</span>
-                        <input type="text" id="username-input" placeholder="ex: @johndoe" autocomplete="off" spellcheck="false">
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label for="name-input">Nome Real</label>
-                    <div class="input-wrapper">
-                        <span class="prompt-symbol">></span>
-                        <input type="text" id="name-input" placeholder="ex: John Doe" autocomplete="off" spellcheck="false">
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label for="email-input">E-mail</label>
-                    <div class="input-wrapper">
-                        <span class="prompt-symbol">✉</span>
-                        <input type="email" id="email-input" placeholder="ex: john@email.com" autocomplete="off" spellcheck="false">
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label for="phone-input">Telefone</label>
-                    <div class="input-wrapper">
-                        <span class="prompt-symbol">#</span>
-                        <input type="text" id="phone-input" placeholder="ex: +55 11 9..." autocomplete="off" spellcheck="false">
-                    </div>
-                </div>
-                <div class="action-group">
-                    <button id="search-btn">EXECUTAR</button>
-                </div>
             </div>
             <div class="status-indicator">
                 <div class="dot blinking"></div>
                 <span>SISTEMA ONLINE</span>
             </div>
         </header>
+
+        <!-- Search Modules Panel -->
+        <section id="search-modules-container">
+            <div class="search-module" data-type="username">
+                <div class="module-header">
+                    <span class="module-icon">@</span>
+                    <span class="module-title">Rastreio de Usuário</span>
+                </div>
+                <div class="module-body">
+                    <input type="text" id="username-input" placeholder="ex: @johndoe" autocomplete="off" spellcheck="false">
+                    <button class="execute-btn" id="btn-username">RUN_</button>
+                </div>
+            </div>
+
+            <div class="search-module" data-type="name">
+                <div class="module-header">
+                    <span class="module-icon">></span>
+                    <span class="module-title">Identidade Real</span>
+                </div>
+                <div class="module-body">
+                    <input type="text" id="name-input" placeholder="ex: John Doe" autocomplete="off" spellcheck="false">
+                    <button class="execute-btn" id="btn-name">RUN_</button>
+                </div>
+            </div>
+
+            <div class="search-module" data-type="email">
+                <div class="module-header">
+                    <span class="module-icon">✉</span>
+                    <span class="module-title">Varredura de E-mail</span>
+                </div>
+                <div class="module-body">
+                    <input type="email" id="email-input" placeholder="ex: john@email.com" autocomplete="off" spellcheck="false">
+                    <button class="execute-btn" id="btn-email">RUN_</button>
+                </div>
+            </div>
+
+            <div class="search-module" data-type="phone">
+                <div class="module-header">
+                    <span class="module-icon">#</span>
+                    <span class="module-title">Interceptação Numérica</span>
+                </div>
+                <div class="module-body">
+                    <input type="text" id="phone-input" placeholder="ex: +55 11..." autocomplete="off" spellcheck="false">
+                    <button class="execute-btn" id="btn-phone">RUN_</button>
+                </div>
+            </div>
+        </section>
 
         <!-- Main Content -->
         <main id="main-panel">
