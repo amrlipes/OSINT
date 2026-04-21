@@ -64,40 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
         dashboard.innerHTML = '';
     }
 
-    async function fetchWithProxy(url) {
-        try {
-            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-            if (response.ok) {
-                const data = await response.json();
-                return data.contents;
-            }
-        } catch (e) {
-            console.error("Proxy error:", e);
-        }
-        return null;
-    }
-
-    async function duckduckgoSearch(query) {
-        const html = await fetchWithProxy(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`);
-        if (!html) return [];
-        
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const links = [];
-        const resultTags = doc.querySelectorAll('.result__snippet, .result__url');
-        
-        resultTags.forEach(a => {
-            let href = a.getAttribute('href');
-            if (href && href.startsWith('//')) href = 'https:' + href;
-            if (href && !href.startsWith('/') && !href.includes('duckduckgo.com')) {
-                links.push(href.trim());
-            }
-        });
-        return [...new Set(links)].slice(0, 5);
-    }
-
     async function executeSearchSequence(query, type) {
-        logToTerminal(`[API] Iniciando Rastreio Multicamadas para: ${type.toUpperCase()}...`, 'system');
+        logToTerminal(`[API] Solicitando processamento de alta performance ao servidor Node.js...`, 'system');
         
         const headerHTML = `
             <div class="dashboard-header">
@@ -105,94 +73,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="target-info">ALVO: ${query}</div>
             </div>
             <div id="results-loader" style="text-align: center; color: var(--accent-primary); margin-top: 20px;">
-                <div class="dot blinking" style="display: inline-block;"></div> Acessando bancos de dados públicos e web proxy...
+                <div class="dot blinking" style="display: inline-block;"></div> Acessando bancos de dados via motor assíncrono (Node)...
             </div>
         `;
         dashboard.innerHTML = headerHTML;
 
-        let results = [];
-
         try {
-            if (type === 'username' || type === 'name') {
-                logToTerminal(`[INFO] Consultando bases de dados do GitHub...`, 'warning');
-                try {
-                    const ghRes = await fetch(`https://api.github.com/search/users?q=${encodeURIComponent(query)}&per_page=5`);
-                    if (ghRes.ok) {
-                        const ghData = await ghRes.json();
-                        if (ghData.items && ghData.items.length > 0) {
-                            let ghDetails = {};
-                            ghData.items.forEach((item, i) => {
-                                ghDetails[`Perfil ${i+1} (${item.login})`] = item.html_url;
-                            });
-                            results.push({
-                                source: "Repositórios de Código (GitHub)",
-                                icon: "</>",
-                                desc: `Foram localizadas ${ghData.total_count} contas correspondentes na plataforma.`,
-                                url: `https://github.com/search?q=${encodeURIComponent(query)}&type=users`,
-                                details: ghDetails
-                            });
-                        }
-                    }
-                } catch(e) {}
-
-                logToTerminal(`[INFO] Analisando Enciclopédia Pública...`, 'warning');
-                try {
-                    const wikiRes = await fetch(`https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&utf8=&format=json&origin=*`);
-                    if (wikiRes.ok) {
-                        const wikiData = await wikiRes.json();
-                        if (wikiData.query && wikiData.query.search && wikiData.query.search.length > 0) {
-                            let wikiDetails = {};
-                            wikiData.query.search.slice(0, 5).forEach((item, i) => {
-                                wikiDetails[`Artigo: ${item.title}`] = `https://pt.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/ /g, '_'))}`;
-                            });
-                            results.push({
-                                source: "Arquivos Enciclopédicos (Wikipedia)",
-                                icon: "🏛",
-                                desc: `Localizadas ${wikiData.query.searchinfo.totalhits} menções em registros históricos ou públicos.`,
-                                url: `https://pt.wikipedia.org/w/index.php?search=${encodeURIComponent(query)}`,
-                                details: wikiDetails
-                            });
-                        }
-                    }
-                } catch(e) {}
+            // Call the Node.js backend
+            const response = await fetch(`http://localhost:3000/api/osint/${type}?q=${encodeURIComponent(query)}`);
+            
+            if (!response.ok) {
+                throw new Error("Erro no servidor da API");
             }
 
-            logToTerminal(`[INFO] Minerando pegadas digitais na internet profunda...`, 'warning');
-            let dorkQuery = type === 'email' ? `"${query}"` : `"${query}"`;
-            const dorks = await duckduckgoSearch(dorkQuery);
-            if (dorks.length > 0) {
-                let dorkDetails = {};
-                dorks.forEach((link, i) => dorkDetails[`Fonte de Dados ${i+1}`] = link);
-                results.push({
-                    source: "Índice Web Aberto",
-                    icon: "🌐",
-                    desc: `Encontramos menções exatas ao alvo na rede primária.`,
-                    url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22`,
-                    details: dorkDetails
-                });
-            }
-
-            if (type === 'email' || type === 'name') {
-                const pdfs = await duckduckgoSearch(`"${query}" filetype:pdf`);
-                if (pdfs.length > 0) {
-                    let pdfDetails = {};
-                    pdfs.forEach((link, i) => pdfDetails[`Documento ${i+1}`] = link);
-                    results.push({
-                        source: "Documentos e Arquivos (PDF)",
-                        icon: "📄",
-                        desc: `Identificados registros em formato PDF contendo as credenciais.`,
-                        url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22+filetype%3Apdf`,
-                        details: pdfDetails
-                    });
-                }
-            }
+            const data = await response.json();
+            const results = data.results || [];
 
             const loader = document.getElementById('results-loader');
             if(loader) loader.remove();
 
             if (results.length === 0) {
-                logToTerminal(`[INFO] Nenhum rastro direto encontrado na rede primária.`, 'warning');
-                dashboard.innerHTML += `<div style="text-align:center; color:var(--text-muted); margin-top:30px; font-size: 1.1rem; border: 1px dashed var(--accent-primary); padding: 20px;">Nenhum dado claro encontrado nas bases conectadas. <br><br> <span style="font-size:0.9rem; color:#fff;">Tente buscar nomes com aspas (ex: "Felipe Amaro") ou utilize e-mails alternativos.</span></div>`;
+                logToTerminal(`[INFO] Nenhum rastro direto encontrado.`, 'warning');
+                dashboard.innerHTML += `<div style="text-align:center; color:var(--text-muted); margin-top:30px; font-size: 1.1rem; border: 1px dashed var(--accent-primary); padding: 20px;">Nenhum dado claro encontrado nas bases conectadas.</div>`;
                 return;
             }
 
@@ -227,23 +129,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     dashboard.appendChild(section);
                     dashboard.scrollTop = dashboard.scrollHeight;
                     
-                }, idx * 800);
+                }, idx * 400); // Faster render timing for efficiency
             });
             
-            const totalDelay = results.length * 800 + 500;
+            const totalDelay = results.length * 400 + 500;
             setTimeout(() => {
-                logToTerminal(`[SUCESSO] Coleta OSINT finalizada 100% no navegador.`, 'success');
+                logToTerminal(`[SUCESSO] Coleta OSINT finalizada rapidamente no backend.`, 'success');
             }, totalDelay);
             
         } catch (error) {
-            logToTerminal(`[ERRO FATAL] Falha de comunicação.`, 'error');
+            logToTerminal(`[ERRO FATAL] Falha de comunicação com o servidor Node.js. Certifique-se de iniciar o servidor na porta 3000.`, 'error');
             console.error(error);
             const loader = document.getElementById('results-loader');
-            if(loader) loader.innerHTML = 'Falha na conexão com a rede de dados.';
+            if(loader) loader.innerHTML = 'Falha na conexão com a rede de dados do servidor backend.';
         }
-    }
-
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
     }
 });
