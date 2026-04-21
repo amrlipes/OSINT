@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // Call the Node.js backend
-            const response = await fetch(`http://localhost:3000/api/osint/${type}?q=${encodeURIComponent(query)}`);
+            const response = await fetch(`http://127.0.0.1:3000/api/osint/${type}?q=${encodeURIComponent(query)}`);
             
             if (!response.ok) {
                 throw new Error("Erro no servidor da API");

@@ -291,9 +291,9 @@ app.get('/api/osint/phone', async (req, res) => {
     res.json({ target: query, type: "phone", results });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '127.0.0.1', () => {
     console.log("=".repeat(50));
     console.log(" NEXUS OSINT ENGINE INICIADA (Node.js)");
-    console.log(` SERVIDOR RODANDO EM: http://localhost:${PORT}`);
+    console.log(` SERVIDOR RODANDO EM: http://127.0.0.1:${PORT}`);
     console.log("=".repeat(50));
 });
