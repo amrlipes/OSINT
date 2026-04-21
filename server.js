@@ -62,6 +62,23 @@ async function wikipediaSearch(query) {
     return [];
 }
 
+async function searchPlatform(query, platformName, domain, icon, desc) {
+    // Usando DuckDuckGo Dorks (site:)
+    const links = await duckduckgoSearch(`"${query}" site:${domain}`);
+    if (links && links.length > 0) {
+        let details = {};
+        links.forEach((link, i) => details[`Registro ${i+1}`] = link);
+        return {
+            source: platformName,
+            icon: icon,
+            desc: desc,
+            url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22+site%3A${domain}`,
+            details
+        };
+    }
+    return null;
+}
+
 // Routes
 app.get('/api/osint/username', async (req, res) => {
     const query = req.query.q;
@@ -69,38 +86,49 @@ app.get('/api/osint/username', async (req, res) => {
     
     const results = [];
     
-    // Perform all searches concurrently for maximum efficiency
-    const [ghData, dorkLinks] = await Promise.all([
-        githubSearch(query),
-        duckduckgoSearch(`"${query}"`)
-    ]);
-    
-    if (ghData) {
-        results.push({
-            source: "GitHub",
-            icon: "</>",
-            desc: "Perfil de desenvolvedor encontrado.",
-            url: ghData.html_url,
-            details: {
-                "Nome Real": ghData.name || "Não informado",
-                "Empresa": ghData.company || "Não informado",
-                "Localização": ghData.location || "Não informado",
-                "Repositórios": ghData.public_repos || 0
+    const searches = [
+        githubSearch(query).then(ghData => {
+            if (ghData) {
+                return {
+                    source: "GitHub",
+                    icon: "</>",
+                    desc: "Perfil de desenvolvedor encontrado.",
+                    url: ghData.html_url,
+                    details: {
+                        "Nome Real": ghData.name || "Não informado",
+                        "Empresa": ghData.company || "Não informado",
+                        "Localização": ghData.location || "Não informado",
+                        "Repositórios": ghData.public_repos || 0
+                    }
+                };
             }
-        });
-    }
+            return null;
+        }),
+        searchPlatform(query, "Instagram", "instagram.com", "📸", "Perfis na rede social."),
+        searchPlatform(query, "TikTok", "tiktok.com", "🎵", "Perfis na rede de vídeos curtos."),
+        searchPlatform(query, "Twitter/X", "twitter.com", "🐦", "Menções ou perfil na rede social."),
+        duckduckgoSearch(`"${query}"`).then(dorkLinks => {
+            if (dorkLinks && dorkLinks.length > 0) {
+                let details = {};
+                dorkLinks.forEach((link, i) => details[`Link ${i+1}`] = link);
+                return {
+                    source: "Pegadas na Web (Geral)",
+                    icon: "🌐",
+                    desc: `Encontramos sites gerais citando este username.`,
+                    url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22`,
+                    details
+                };
+            }
+            return null;
+        })
+    ];
     
-    if (dorkLinks && dorkLinks.length > 0) {
-        let details = {};
-        dorkLinks.forEach((link, i) => details[`Link ${i+1}`] = link);
-        results.push({
-            source: "Pegadas na Web (Dork)",
-            icon: "🔍",
-            desc: `Encontramos ${dorkLinks.length} sites citando este username publicamente.`,
-            url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22`,
-            details
-        });
-    }
+    const completed = await Promise.allSettled(searches);
+    completed.forEach(result => {
+        if (result.status === 'fulfilled' && result.value) {
+            results.push(result.value);
+        }
+    });
     
     res.json({ target: query, type: "username", results });
 });
@@ -111,49 +139,49 @@ app.get('/api/osint/name', async (req, res) => {
     
     const results = [];
     
-    const [wikiData, pdfLinks, newsLinks] = await Promise.all([
-        wikipediaSearch(query),
-        duckduckgoSearch(`"${query}" filetype:pdf`),
-        duckduckgoSearch(`"${query}" site:globo.com OR site:uol.com.br`)
-    ]);
+    const searches = [
+        wikipediaSearch(query).then(data => {
+            if (data && data.length > 0) {
+                let details = {};
+                data.forEach(item => details[`Artigo: ${item.title}`] = `https://pt.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/ /g, '_'))}`);
+                return {
+                    source: "Arquivos Enciclopédicos (Wikipedia)",
+                    icon: "🏛",
+                    desc: "Localizamos menções em registros históricos ou públicos.",
+                    url: `https://pt.wikipedia.org/w/index.php?search=${encodeURIComponent(query)}`,
+                    details
+                };
+            }
+            return null;
+        }),
+        searchPlatform(query, "JusBrasil", "jusbrasil.com.br", "⚖️", "Envolvimentos em processos judiciais e diários oficiais."),
+        searchPlatform(query, "Jucesp (Empresas SP)", "jucesponline.sp.gov.br", "🏢", "Participação em quadros societários no estado de SP."),
+        searchPlatform(query, "Instagram", "instagram.com", "📸", "Possíveis perfis na rede social."),
+        searchPlatform(query, "TikTok", "tiktok.com", "🎵", "Possíveis perfis na rede de vídeos curtos."),
+        searchPlatform(query, "LinkedIn", "br.linkedin.com", "💼", "Perfis profissionais indexados."),
+        searchPlatform(query, "Google Docs", "docs.google.com", "📝", "Documentos públicos ou planilhas indexadas."),
+        duckduckgoSearch(`"${query}" filetype:pdf`).then(links => {
+            if (links && links.length > 0) {
+                let details = {};
+                links.forEach((link, i) => details[`Doc ${i+1}`] = link);
+                return {
+                    source: "Registros em PDF (Geral)",
+                    icon: "📄",
+                    desc: "PDFs públicos contendo o nome exato.",
+                    url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22+filetype%3Apdf`,
+                    details
+                };
+            }
+            return null;
+        })
+    ];
 
-    if (wikiData && wikiData.length > 0) {
-        let details = {};
-        wikiData.forEach(item => {
-            details[`Artigo: ${item.title}`] = `https://pt.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/ /g, '_'))}`;
-        });
-        results.push({
-            source: "Arquivos Enciclopédicos (Wikipedia)",
-            icon: "🏛",
-            desc: `Localizamos menções em registros históricos ou públicos.`,
-            url: `https://pt.wikipedia.org/w/index.php?search=${encodeURIComponent(query)}`,
-            details
-        });
-    }
-    
-    if (pdfLinks && pdfLinks.length > 0) {
-        let details = {};
-        pdfLinks.forEach((link, i) => details[`Doc ${i+1}`] = link);
-        results.push({
-            source: "Registros em PDF (Editais/Processos)",
-            icon: "📄",
-            desc: "PDFs públicos contendo o nome exato.",
-            url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22+filetype%3Apdf`,
-            details
-        });
-    }
-    
-    if (newsLinks && newsLinks.length > 0) {
-        let details = {};
-        newsLinks.forEach((link, i) => details[`Notícia ${i+1}`] = link);
-        results.push({
-            source: "Mídia / Portais de Notícias",
-            icon: "📰",
-            desc: "Menções em portais brasileiros.",
-            url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22+site%3Aglobo.com`,
-            details
-        });
-    }
+    const completed = await Promise.allSettled(searches);
+    completed.forEach(result => {
+        if (result.status === 'fulfilled' && result.value) {
+            results.push(result.value);
+        }
+    });
     
     res.json({ target: query, type: "name", results });
 });
@@ -164,40 +192,51 @@ app.get('/api/osint/email', async (req, res) => {
     
     const results = [];
     
-    const [dorkLinks, pdfLinks] = await Promise.all([
-        duckduckgoSearch(`"${query}"`),
-        duckduckgoSearch(`"${query}" filetype:pdf`)
-    ]);
+    const searches = [
+        duckduckgoSearch(`"${query}"`).then(dorkLinks => {
+            if (dorkLinks && dorkLinks.length > 0) {
+                let details = {};
+                dorkLinks.forEach((link, i) => details[`Página ${i+1}`] = link);
+                return {
+                    source: "Índice Web Aberto",
+                    icon: "🌐",
+                    desc: `Este e-mail está vazado em texto claro nas páginas abaixo.`,
+                    url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22`,
+                    details
+                };
+            }
+            return null;
+        }),
+        duckduckgoSearch(`"${query}" filetype:pdf`).then(pdfLinks => {
+            if (pdfLinks && pdfLinks.length > 0) {
+                let details = {};
+                pdfLinks.forEach((link, i) => details[`Documento ${i+1}`] = link);
+                return {
+                    source: "Documentos Oficiais (PDF)",
+                    icon: "📄",
+                    desc: "Encontramos PDFs públicos contendo o endereço de e-mail.",
+                    url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22+filetype%3Apdf`,
+                    details
+                };
+            }
+            return null;
+        }),
+        searchPlatform(query, "GitHub", "github.com", "</>", "Commits ou perfis contendo este email."),
+        searchPlatform(query, "Google Docs", "docs.google.com", "📝", "Planilhas ou documentos vazados contendo este email.")
+    ];
     
-    if (dorkLinks && dorkLinks.length > 0) {
-        let details = {};
-        dorkLinks.forEach((link, i) => details[`Página ${i+1}`] = link);
-        results.push({
-            source: "Índice Web Aberto",
-            icon: "🌐",
-            desc: `Este e-mail está vazado em texto claro em ${dorkLinks.length} páginas.`,
-            url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22`,
-            details
-        });
-    }
-    
-    if (pdfLinks && pdfLinks.length > 0) {
-        let details = {};
-        pdfLinks.forEach((link, i) => details[`Documento ${i+1}`] = link);
-        results.push({
-            source: "Documentos Oficiais (PDF)",
-            icon: "📄",
-            desc: "Encontramos PDFs públicos contendo o endereço de e-mail.",
-            url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22+filetype%3Apdf`,
-            details
-        });
-    }
-    
+    const completed = await Promise.allSettled(searches);
+    completed.forEach(result => {
+        if (result.status === 'fulfilled' && result.value) {
+            results.push(result.value);
+        }
+    });
+
     if (results.length === 0) {
         results.push({
             source: "Varredura Concluída",
             icon: "🛡️",
-            desc: "Não encontramos dados em texto claro ou PDFs públicos em nossa rede principal.",
+            desc: "Não encontramos dados em texto claro, PDFs ou plataformas em nossa rede.",
             url: "#",
             details: {}
         });
@@ -213,19 +252,33 @@ app.get('/api/osint/phone', async (req, res) => {
     const results = [];
     const cleanPhone = query.replace(/[^\d+]/g, ''); // keeping + and numbers
     
-    const dorkLinks = await duckduckgoSearch(`"${cleanPhone}" OR "${query}"`);
-    
-    if (dorkLinks && dorkLinks.length > 0) {
-        let details = {};
-        dorkLinks.forEach((link, i) => details[`Registro ${i+1}`] = link);
-        results.push({
-            source: "Registros Telefônicos (Web)",
-            icon: "☎",
-            desc: "Encontramos páginas contendo este número.",
-            url: `https://duckduckgo.com/?q=%22${encodeURIComponent(cleanPhone)}%22`,
-            details
-        });
-    } else {
+    const searches = [
+        duckduckgoSearch(`"${cleanPhone}" OR "${query}"`).then(dorkLinks => {
+            if (dorkLinks && dorkLinks.length > 0) {
+                let details = {};
+                dorkLinks.forEach((link, i) => details[`Registro ${i+1}`] = link);
+                return {
+                    source: "Registros Telefônicos (Web)",
+                    icon: "☎",
+                    desc: "Encontramos páginas na web contendo este número.",
+                    url: `https://duckduckgo.com/?q=%22${encodeURIComponent(cleanPhone)}%22`,
+                    details
+                };
+            }
+            return null;
+        }),
+        searchPlatform(query, "Instagram", "instagram.com", "📸", "Vazamentos em bios do Instagram."),
+        searchPlatform(query, "JusBrasil", "jusbrasil.com.br", "⚖️", "Possível presença em processos no JusBrasil.")
+    ];
+
+    const completed = await Promise.allSettled(searches);
+    completed.forEach(result => {
+        if (result.status === 'fulfilled' && result.value) {
+            results.push(result.value);
+        }
+    });
+
+    if (results.length === 0) {
         results.push({
             source: "Segurança de Número",
             icon: "🛡️",
