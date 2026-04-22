@@ -80,11 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function webSearch(query) {
-        let html = await fetchWithProxy(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`);
-        
-        if (!html || html.includes('captcha') || html.includes('If this error persists') || html.includes('bot')) {
-            html = await fetchWithProxy(`https://search.yahoo.com/search?p=${encodeURIComponent(query)}`);
-        }
+        // Usa o Yahoo Search nativamente pois o DuckDuckGo bloqueia DataCenters/Proxies permanentemente.
+        let html = await fetchWithProxy(`https://search.yahoo.com/search?p=${encodeURIComponent(query)}`);
         
         if (!html) return [];
         
