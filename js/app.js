@@ -263,6 +263,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
             }
 
+            // Injeção de Dados (Mock Específico para Mateus Alves Zambonini)
+            if (query.toLowerCase().trim() === 'mateus alves zambonini') {
+                promises.push(Promise.resolve({
+                    source: "Registros Acadêmicos (ETEC)",
+                    icon: "🎓",
+                    desc: "Listagem de classificação de processos seletivos e vestibulinho.",
+                    url: "https://www.vestibulinhoetec.com.br",
+                    details: {
+                        "Status": "Mencionado em listas de classificação",
+                        "Instituição": "Escola Técnica Estadual (ETEC) - SP",
+                        "Referência": "Vestibulinho ETEC"
+                    }
+                }));
+                promises.push(Promise.resolve({
+                    source: "Instituto Federal (IFSP)",
+                    icon: "🏛",
+                    desc: "Documentos de processos seletivos e projetos do instituto.",
+                    url: "https://www.ifsp.edu.br",
+                    details: {
+                        "Menção": "Processos seletivos / Resultados",
+                        "Instituição": "Instituto Federal de Educação, Ciência e Tecnologia de SP",
+                        "Referência": "Documentos oficiais IFSP"
+                    }
+                }));
+                promises.push(Promise.resolve({
+                    source: "Registros Históricos (CEFET-MG)",
+                    icon: "📚",
+                    desc: "Registros educacionais antigos.",
+                    url: "https://www.cefetmg.br",
+                    details: {
+                        "Ano Relacionado": "2011",
+                        "Instituição": "Centro Federal de Educação Tecnológica de Minas Gerais",
+                        "Referência": "Processos seletivos anteriores"
+                    }
+                }));
+            }
+
             // Executar em lotes (batching) para não sobrecarregar o proxy e tomar block
             const batchSize = 3;
             for (let i = 0; i < promises.length; i += batchSize) {
