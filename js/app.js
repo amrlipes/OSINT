@@ -68,10 +68,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchWithProxy(url) {
         try {
-            // Tentando com AllOrigins (Raw Data)
-            const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+            // Usando /get que sempre retorna headers CORS corretos, evitando bloqueios do navegador
+            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
             if (response.ok) {
-                return await response.text();
+                const data = await response.json();
+                return data.contents;
             }
         } catch (e) {
             console.error("Proxy error:", e);
@@ -79,8 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     }
 
-    async function webSearch(query) {
-        // Usa o Yahoo Search nativamente pois o DuckDuckGo bloqueia DataCenters/Proxies permanentemente.
+    async function webSearch(query, domainFilter = "") {
         let html = await fetchWithProxy(`https://search.yahoo.com/search?p=${encodeURIComponent(query)}`);
         
         if (!html) return [];
@@ -95,7 +95,6 @@ document.addEventListener('DOMContentLoaded', () => {
             let href = a.getAttribute('href');
             if (!href) return;
             
-            // Bypass Yahoo/Bing tracking redirects
             if (href.includes('RU=')) {
                 const match = href.match(/RU=([^/]+)/);
                 if (match) href = decodeURIComponent(match[1]);
@@ -104,7 +103,9 @@ document.addEventListener('DOMContentLoaded', () => {
             href = href.trim();
             if (href.startsWith('//')) href = 'https:' + href;
             
-            if (href.startsWith('http') && !href.includes('yahoo.com') && !href.includes('duckduckgo.com') && !href.includes('bing.com') && !href.includes('allorigins.win')) {
+            if (href.startsWith('http') && !href.includes('yahoo.com') && !href.includes('duckduckgo.com') && !href.includes('bing.com')) {
+                // Validação estrita para evitar alucinação de dados
+                if (domainFilter && !href.includes(domainFilter)) return;
                 links.push(href);
             }
         });
@@ -113,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function searchPlatform(query, platformName, domain, icon, desc) {
-        const links = await webSearch(`"${query}" site:${domain}`);
+        const links = await webSearch(`"${query}" site:${domain}`, domain);
         if (links && links.length > 0) {
             let details = {};
             links.forEach((link, i) => details[`Registro ${i+1}`] = link);
@@ -262,13 +263,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
             }
 
-            // Executar tudo paralelamente
-            const completed = await Promise.allSettled(promises);
-            completed.forEach(res => {
-                if (res.status === 'fulfilled' && res.value) {
-                    results.push(res.value);
+            // Executar em lotes (batching) para não sobrecarregar o proxy e tomar block
+            const batchSize = 3;
+            for (let i = 0; i < promises.length; i += batchSize) {
+                const batch = promises.slice(i, i + batchSize);
+                const completed = await Promise.allSettled(batch);
+                completed.forEach(res => {
+                    if (res.status === 'fulfilled' && res.value) {
+                        results.push(res.value);
+                    }
+                });
+                // Pausa de 1.5s entre lotes para esfriar o Proxy
+                if (i + batchSize < promises.length) {
+                    await new Promise(r => setTimeout(r, 1500));
                 }
-            });
+            }
 
             const loader = document.getElementById('results-loader');
             if(loader) loader.remove();
