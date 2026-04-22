@@ -68,11 +68,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchWithProxy(url) {
         try {
-            // Using allorigins to bypass CORS for DuckDuckGo
-            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+            // Tentando com AllOrigins (Raw Data)
+            const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
             if (response.ok) {
-                const data = await response.json();
-                return data.contents;
+                return await response.text();
             }
         } catch (e) {
             console.error("Proxy error:", e);
@@ -80,28 +79,44 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     }
 
-    async function duckduckgoSearch(query) {
-        const html = await fetchWithProxy(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`);
+    async function webSearch(query) {
+        let html = await fetchWithProxy(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`);
+        
+        if (!html || html.includes('captcha') || html.includes('If this error persists') || html.includes('bot')) {
+            html = await fetchWithProxy(`https://search.yahoo.com/search?p=${encodeURIComponent(query)}`);
+        }
+        
         if (!html) return [];
         
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
-        const links = [];
+        let links = [];
         
-        const resultTags = doc.querySelectorAll('.result__url');
-        resultTags.forEach(a => {
-            if (links.length >= 5) return;
+        const allLinks = doc.querySelectorAll('a');
+        allLinks.forEach(a => {
+            if (links.length >= 7) return;
             let href = a.getAttribute('href');
-            if (href) {
-                if (href.startsWith('//')) href = 'https:' + href;
-                if (!href.startsWith('/')) links.push(href.trim());
+            if (!href) return;
+            
+            // Bypass Yahoo/Bing tracking redirects
+            if (href.includes('RU=')) {
+                const match = href.match(/RU=([^/]+)/);
+                if (match) href = decodeURIComponent(match[1]);
+            }
+            
+            href = href.trim();
+            if (href.startsWith('//')) href = 'https:' + href;
+            
+            if (href.startsWith('http') && !href.includes('yahoo.com') && !href.includes('duckduckgo.com') && !href.includes('bing.com') && !href.includes('allorigins.win')) {
+                links.push(href);
             }
         });
-        return links;
+        
+        return [...new Set(links)];
     }
 
     async function searchPlatform(query, platformName, domain, icon, desc) {
-        const links = await duckduckgoSearch(`"${query}" site:${domain}`);
+        const links = await webSearch(`"${query}" site:${domain}`);
         if (links && links.length > 0) {
             let details = {};
             links.forEach((link, i) => details[`Registro ${i+1}`] = link);
@@ -214,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Busca geral e PDFs usando dorks nativos
             if (type === 'name' || type === 'email') {
                 promises.push(
-                    duckduckgoSearch(`"${query}" filetype:pdf`).then(links => {
+                    webSearch(`"${query}" filetype:pdf`).then(links => {
                         if (links && links.length > 0) {
                             let details = {};
                             links.forEach((link, i) => details[`Doc ${i+1}`] = link);
@@ -233,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (type === 'username' || type === 'email' || type === 'phone') {
                 const cleanQuery = type === 'phone' ? query.replace(/[^\d+]/g, '') : query;
                 promises.push(
-                    duckduckgoSearch(`"${cleanQuery}"`).then(links => {
+                    webSearch(`"${cleanQuery}"`).then(links => {
                         if (links && links.length > 0) {
                             let details = {};
                             links.forEach((link, i) => details[`Link ${i+1}`] = link);
