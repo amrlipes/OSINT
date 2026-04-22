@@ -325,19 +325,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-        } catch (error) {
-            logToTerminal(`[ERRO] Ocorreu uma falha no processamento via proxy.`, 'error');
-            console.error(error);
-        } finally {
+            // Remover loader
             const loader = document.getElementById('results-loader');
             if(loader) loader.remove();
-        }
 
-        if (results.length === 0) {
-            logToTerminal(`[INFO] Nenhum rastro direto encontrado nas bases.`, 'warning');
-            dashboard.innerHTML += `<div style="text-align:center; color:var(--text-muted); margin-top:30px; font-size: 1.1rem; border: 1px dashed var(--accent-primary); padding: 20px;">Nenhum dado claro encontrado nas bases conectadas.</div>`;
-            return;
-        }
+            if (results.length === 0) {
+                logToTerminal(`[INFO] Nenhum rastro direto encontrado nas bases.`, 'warning');
+                dashboard.innerHTML += `<div style="text-align:center; color:var(--text-muted); margin-top:30px; font-size: 1.1rem; border: 1px dashed var(--accent-primary); padding: 20px;">Nenhum dado claro encontrado nas bases conectadas.</div>`;
+                return;
+            }
 
             // Render categories dynamically
             results.forEach((result, idx) => {
@@ -377,12 +373,12 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 logToTerminal(`[SUCESSO] Coleta OSINT finalizada no navegador.`, 'success');
             }, totalDelay);
-            
+
         } catch (error) {
             logToTerminal(`[ERRO] Ocorreu uma falha no processamento via proxy.`, 'error');
             console.error(error);
             const loader = document.getElementById('results-loader');
-            if(loader) loader.innerHTML = 'Falha na conexão com o proxy de busca. Tente novamente mais tarde.';
+            if(loader) loader.remove();
         }
     }
 });
