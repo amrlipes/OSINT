@@ -64,8 +64,105 @@ document.addEventListener('DOMContentLoaded', () => {
         dashboard.innerHTML = '';
     }
 
+    // --- OSINT ENGINE (100% Frontend via CORS Proxy) ---
+
+    async function fetchWithProxy(url) {
+        try {
+            // Using allorigins to bypass CORS for DuckDuckGo
+            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+            if (response.ok) {
+                const data = await response.json();
+                return data.contents;
+            }
+        } catch (e) {
+            console.error("Proxy error:", e);
+        }
+        return null;
+    }
+
+    async function duckduckgoSearch(query) {
+        const html = await fetchWithProxy(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`);
+        if (!html) return [];
+        
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const links = [];
+        
+        const resultTags = doc.querySelectorAll('.result__url');
+        resultTags.forEach(a => {
+            if (links.length >= 5) return;
+            let href = a.getAttribute('href');
+            if (href) {
+                if (href.startsWith('//')) href = 'https:' + href;
+                if (!href.startsWith('/')) links.push(href.trim());
+            }
+        });
+        return links;
+    }
+
+    async function searchPlatform(query, platformName, domain, icon, desc) {
+        const links = await duckduckgoSearch(`"${query}" site:${domain}`);
+        if (links && links.length > 0) {
+            let details = {};
+            links.forEach((link, i) => details[`Registro ${i+1}`] = link);
+            return {
+                source: platformName,
+                icon: icon,
+                desc: desc,
+                url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22+site%3A${domain}`,
+                details
+            };
+        }
+        return null;
+    }
+
+    async function searchWikipedia(query) {
+        try {
+            const res = await fetch(`https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&utf8=&format=json&origin=*`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.query && data.query.search && data.query.search.length > 0) {
+                    let details = {};
+                    data.query.search.slice(0, 5).forEach((item) => {
+                        details[`Artigo: ${item.title}`] = `https://pt.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/ /g, '_'))}`;
+                    });
+                    return {
+                        source: "Arquivos Enciclopédicos (Wikipedia)",
+                        icon: "🏛",
+                        desc: "Localizamos menções em registros históricos ou públicos.",
+                        url: `https://pt.wikipedia.org/w/index.php?search=${encodeURIComponent(query)}`,
+                        details
+                    };
+                }
+            }
+        } catch (e) {}
+        return null;
+    }
+
+    async function searchGithub(query) {
+        try {
+            const res = await fetch(`https://api.github.com/users/${encodeURIComponent(query)}`);
+            if (res.ok) {
+                const data = await res.json();
+                return {
+                    source: "GitHub",
+                    icon: "</>",
+                    desc: "Perfil de desenvolvedor encontrado.",
+                    url: data.html_url,
+                    details: {
+                        "Nome Real": data.name || "Não informado",
+                        "Empresa": data.company || "Não informado",
+                        "Localização": data.location || "Não informado",
+                        "Repositórios": data.public_repos || 0
+                    }
+                };
+            }
+        } catch (e) {}
+        return null;
+    }
+
     async function executeSearchSequence(query, type) {
-        logToTerminal(`[API] Solicitando processamento de alta performance ao servidor Node.js...`, 'system');
+        logToTerminal(`[SISTEMA] Iniciando busca avançada via Proxy Seguro (100% Client-Side)...`, 'system');
         
         const headerHTML = `
             <div class="dashboard-header">
@@ -73,27 +170,99 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="target-info">ALVO: ${query}</div>
             </div>
             <div id="results-loader" style="text-align: center; color: var(--accent-primary); margin-top: 20px;">
-                <div class="dot blinking" style="display: inline-block;"></div> Acessando bancos de dados via motor assíncrono (Node)...
+                <div class="dot blinking" style="display: inline-block;"></div> Varrendo plataformas e executando Dorks...
             </div>
         `;
         dashboard.innerHTML = headerHTML;
 
+        let results = [];
+        let promises = [];
+
         try {
-            // Call the Node.js backend
-            const response = await fetch(`http://127.0.0.1:3000/api/osint/${type}?q=${encodeURIComponent(query)}`);
-            
-            if (!response.ok) {
-                throw new Error("Erro no servidor da API");
+            // Construir as promessas de busca de acordo com o tipo
+            if (type === 'name') {
+                promises = [
+                    searchWikipedia(query),
+                    searchPlatform(query, "JusBrasil", "jusbrasil.com.br", "⚖️", "Envolvimentos em processos judiciais e diários oficiais."),
+                    searchPlatform(query, "Jucesp (Empresas SP)", "jucesponline.sp.gov.br", "🏢", "Participação em quadros societários no estado de SP."),
+                    searchPlatform(query, "Instagram", "instagram.com", "📸", "Possíveis perfis na rede social."),
+                    searchPlatform(query, "TikTok", "tiktok.com", "🎵", "Possíveis perfis na rede de vídeos curtos."),
+                    searchPlatform(query, "LinkedIn", "br.linkedin.com", "💼", "Perfis profissionais indexados."),
+                    searchPlatform(query, "Google Docs", "docs.google.com", "📝", "Documentos públicos ou planilhas indexadas.")
+                ];
+            } else if (type === 'username') {
+                promises = [
+                    searchGithub(query),
+                    searchPlatform(query, "Instagram", "instagram.com", "📸", "Perfis na rede social."),
+                    searchPlatform(query, "TikTok", "tiktok.com", "🎵", "Perfis na rede de vídeos curtos."),
+                    searchPlatform(query, "Twitter/X", "twitter.com", "🐦", "Menções ou perfil na rede social.")
+                ];
+            } else if (type === 'email') {
+                promises = [
+                    searchPlatform(query, "GitHub", "github.com", "</>", "Commits ou perfis contendo este email."),
+                    searchPlatform(query, "Google Docs", "docs.google.com", "📝", "Planilhas ou documentos vazados contendo este email."),
+                    searchPlatform(query, "Twitter/X", "twitter.com", "🐦", "Menções associadas ao email.")
+                ];
+            } else if (type === 'phone') {
+                const cleanPhone = query.replace(/[^\d+]/g, '');
+                promises = [
+                    searchPlatform(cleanPhone, "Instagram", "instagram.com", "📸", "Vazamentos em bios do Instagram."),
+                    searchPlatform(cleanPhone, "JusBrasil", "jusbrasil.com.br", "⚖️", "Possível presença em processos no JusBrasil.")
+                ];
             }
 
-            const data = await response.json();
-            const results = data.results || [];
+            // Busca geral e PDFs usando dorks nativos
+            if (type === 'name' || type === 'email') {
+                promises.push(
+                    duckduckgoSearch(`"${query}" filetype:pdf`).then(links => {
+                        if (links && links.length > 0) {
+                            let details = {};
+                            links.forEach((link, i) => details[`Doc ${i+1}`] = link);
+                            return {
+                                source: "Registros em PDF (Geral)",
+                                icon: "📄",
+                                desc: "PDFs públicos contendo o alvo exato.",
+                                url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22+filetype%3Apdf`,
+                                details
+                            };
+                        }
+                        return null;
+                    })
+                );
+            }
+            if (type === 'username' || type === 'email' || type === 'phone') {
+                const cleanQuery = type === 'phone' ? query.replace(/[^\d+]/g, '') : query;
+                promises.push(
+                    duckduckgoSearch(`"${cleanQuery}"`).then(links => {
+                        if (links && links.length > 0) {
+                            let details = {};
+                            links.forEach((link, i) => details[`Link ${i+1}`] = link);
+                            return {
+                                source: "Pegadas na Web (Geral)",
+                                icon: "🌐",
+                                desc: `Páginas web abertas citando o alvo.`,
+                                url: `https://duckduckgo.com/?q=%22${encodeURIComponent(cleanQuery)}%22`,
+                                details
+                            };
+                        }
+                        return null;
+                    })
+                );
+            }
+
+            // Executar tudo paralelamente
+            const completed = await Promise.allSettled(promises);
+            completed.forEach(res => {
+                if (res.status === 'fulfilled' && res.value) {
+                    results.push(res.value);
+                }
+            });
 
             const loader = document.getElementById('results-loader');
             if(loader) loader.remove();
 
             if (results.length === 0) {
-                logToTerminal(`[INFO] Nenhum rastro direto encontrado.`, 'warning');
+                logToTerminal(`[INFO] Nenhum rastro direto encontrado nas bases.`, 'warning');
                 dashboard.innerHTML += `<div style="text-align:center; color:var(--text-muted); margin-top:30px; font-size: 1.1rem; border: 1px dashed var(--accent-primary); padding: 20px;">Nenhum dado claro encontrado nas bases conectadas.</div>`;
                 return;
             }
@@ -129,19 +298,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     dashboard.appendChild(section);
                     dashboard.scrollTop = dashboard.scrollHeight;
                     
-                }, idx * 400); // Faster render timing for efficiency
+                }, idx * 400); 
             });
             
             const totalDelay = results.length * 400 + 500;
             setTimeout(() => {
-                logToTerminal(`[SUCESSO] Coleta OSINT finalizada rapidamente no backend.`, 'success');
+                logToTerminal(`[SUCESSO] Coleta OSINT finalizada no navegador.`, 'success');
             }, totalDelay);
             
         } catch (error) {
-            logToTerminal(`[ERRO FATAL] Falha de comunicação com o servidor Node.js. Certifique-se de iniciar o servidor na porta 3000.`, 'error');
+            logToTerminal(`[ERRO] Ocorreu uma falha no processamento via proxy.`, 'error');
             console.error(error);
             const loader = document.getElementById('results-loader');
-            if(loader) loader.innerHTML = 'Falha na conexão com a rede de dados do servidor backend.';
+            if(loader) loader.innerHTML = 'Falha na conexão com o proxy de busca. Tente novamente mais tarde.';
         }
     }
 });
