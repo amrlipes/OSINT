@@ -66,21 +66,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- OSINT ENGINE (100% Frontend via CORS Proxy) ---
 
-    async function fetchWithProxy(url, timeout = 10000) {
+    async function fetchWithProxy(url, timeout = 12000) {
         const controller = new AbortController();
         const id = setTimeout(() => controller.abort(), timeout);
 
         try {
-            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {
-                signal: controller.signal
-            });
-            clearTimeout(id);
+            // Tentativa primária usando corsproxy.io (mais rápido, evita captcha do allorigins)
+            let proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+            let response = await fetch(proxyUrl, { signal: controller.signal });
+            
+            if (response.ok) {
+                clearTimeout(id);
+                return await response.text();
+            }
+
+            // Fallback para allorigins se falhar
+            proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+            response = await fetch(proxyUrl, { signal: controller.signal });
+            
             if (response.ok) {
                 const data = await response.json();
+                clearTimeout(id);
                 return data.contents;
             }
+            
         } catch (e) {
             console.error("Proxy error:", e);
+        } finally {
             clearTimeout(id);
         }
         return null;
@@ -89,9 +101,9 @@ document.addEventListener('DOMContentLoaded', () => {
     async function webSearch(query, domainFilter = "") {
         // Diversos motores para simular a abrangência do Google e evitar bloqueios
         const engines = [
-            `https://www.bing.com/search?q=${encodeURIComponent(query)}`,
+            `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
             `https://search.yahoo.com/search?p=${encodeURIComponent(query)}`,
-            `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`
+            `https://www.bing.com/search?q=${encodeURIComponent(query)}`
         ];
         
         let allLinks = [];
