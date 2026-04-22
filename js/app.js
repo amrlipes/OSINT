@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 source: platformName,
                 icon: icon,
                 desc: desc,
-                url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22+site%3A${domain}`,
+                url: `https://www.google.com/search?q=%22${encodeURIComponent(query)}%22+site%3A${domain}`,
                 details
             };
         }
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 source: "Registros em PDF (Geral)",
                                 icon: "📄",
                                 desc: "PDFs públicos contendo o alvo exato.",
-                                url: `https://duckduckgo.com/?q=%22${encodeURIComponent(query)}%22+filetype%3Apdf`,
+                                url: `https://www.google.com/search?q=%22${encodeURIComponent(query)}%22+filetype%3Apdf`,
                                 details
                             };
                         }
@@ -254,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 source: "Pegadas na Web (Geral)",
                                 icon: "🌐",
                                 desc: `Páginas web abertas citando o alvo.`,
-                                url: `https://duckduckgo.com/?q=%22${encodeURIComponent(cleanQuery)}%22`,
+                                url: `https://www.google.com/search?q=%22${encodeURIComponent(cleanQuery)}%22`,
                                 details
                             };
                         }
