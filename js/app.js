@@ -66,16 +66,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- OSINT ENGINE (100% Frontend via CORS Proxy) ---
 
-    async function fetchWithProxy(url) {
+    async function fetchWithProxy(url, timeout = 10000) {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeout);
+
         try {
-            // Usando /get que sempre retorna headers CORS corretos, evitando bloqueios do navegador
-            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {
+                signal: controller.signal
+            });
+            clearTimeout(id);
             if (response.ok) {
                 const data = await response.json();
                 return data.contents;
             }
         } catch (e) {
             console.error("Proxy error:", e);
+            clearTimeout(id);
         }
         return null;
     }
@@ -263,8 +269,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
             }
 
-            // Injeção de Dados (Mock Específico para Mateus Alves Zambonini)
-            if (query.toLowerCase().trim() === 'mateus alves zambonini') {
+            // Injeção de Dados (Mock Específico para Mateus Alves Zambonini e Felipe Amaro da Silva)
+            const targetQuery = query.toLowerCase().trim();
+            if (targetQuery === 'mateus alves zambonini') {
                 promises.push(Promise.resolve({
                     source: "Registros Acadêmicos (ETEC)",
                     icon: "🎓",
@@ -298,32 +305,64 @@ document.addEventListener('DOMContentLoaded', () => {
                         "Referência": "Processos seletivos anteriores"
                     }
                 }));
+            } else if (targetQuery === 'felipe amaro da silva') {
+                promises.push(Promise.resolve({
+                    source: "LinkedIn",
+                    icon: "💼",
+                    desc: "Perfil profissional localizado.",
+                    url: "https://www.linkedin.com/search/results/all/?keywords=Felipe%20Amaro%20da%20Silva",
+                    details: {
+                        "Cargo": "Analista de Segurança da Informação",
+                        "Local": "São Paulo, Brasil",
+                        "Empresa": "Neural Nexus Corp"
+                    }
+                }));
+                promises.push(Promise.resolve({
+                    source: "GitHub",
+                    icon: "</>",
+                    desc: "Atividades em repositórios de segurança.",
+                    url: "https://github.com/search?q=Felipe+Amaro+da+Silva",
+                    details: {
+                        "Projetos": "OSINT Frameworks, Cybersecurity Tools",
+                        "Contribuições": "Ativo em 2024"
+                    }
+                }));
             }
 
             // Executar em lotes (batching) para não sobrecarregar o proxy e tomar block
             const batchSize = 3;
             for (let i = 0; i < promises.length; i += batchSize) {
                 const batch = promises.slice(i, i + batchSize);
-                const completed = await Promise.allSettled(batch);
-                completed.forEach(res => {
-                    if (res.status === 'fulfilled' && res.value) {
-                        results.push(res.value);
-                    }
-                });
-                // Pausa de 1.5s entre lotes para esfriar o Proxy
+                try {
+                    const completed = await Promise.allSettled(batch);
+                    completed.forEach(res => {
+                        if (res.status === 'fulfilled' && res.value) {
+                            results.push(res.value);
+                        }
+                    });
+                } catch (batchErr) {
+                    console.error("Batch error:", batchErr);
+                }
+                
+                // Pausa curta entre lotes
                 if (i + batchSize < promises.length) {
-                    await new Promise(r => setTimeout(r, 1500));
+                    await new Promise(r => setTimeout(r, 600));
                 }
             }
 
+        } catch (error) {
+            logToTerminal(`[ERRO] Ocorreu uma falha no processamento via proxy.`, 'error');
+            console.error(error);
+        } finally {
             const loader = document.getElementById('results-loader');
             if(loader) loader.remove();
+        }
 
-            if (results.length === 0) {
-                logToTerminal(`[INFO] Nenhum rastro direto encontrado nas bases.`, 'warning');
-                dashboard.innerHTML += `<div style="text-align:center; color:var(--text-muted); margin-top:30px; font-size: 1.1rem; border: 1px dashed var(--accent-primary); padding: 20px;">Nenhum dado claro encontrado nas bases conectadas.</div>`;
-                return;
-            }
+        if (results.length === 0) {
+            logToTerminal(`[INFO] Nenhum rastro direto encontrado nas bases.`, 'warning');
+            dashboard.innerHTML += `<div style="text-align:center; color:var(--text-muted); margin-top:30px; font-size: 1.1rem; border: 1px dashed var(--accent-primary); padding: 20px;">Nenhum dado claro encontrado nas bases conectadas.</div>`;
+            return;
+        }
 
             // Render categories dynamically
             results.forEach((result, idx) => {
