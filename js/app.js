@@ -87,16 +87,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function webSearch(query, domainFilter = "") {
-        // Motores de busca alternativos para maior eficiência
+        // Diversos motores para simular a abrangência do Google e evitar bloqueios
         const engines = [
+            `https://www.bing.com/search?q=${encodeURIComponent(query)}`,
             `https://search.yahoo.com/search?p=${encodeURIComponent(query)}`,
-            `https://www.bing.com/search?q=${encodeURIComponent(query)}`
+            `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`
         ];
         
         let allLinks = [];
         
         for (const engineUrl of engines) {
-            let html = await fetchWithProxy(engineUrl, 7000);
+            let html = await fetchWithProxy(engineUrl, 8000);
             if (!html) continue;
             
             const parser = new DOMParser();
@@ -107,32 +108,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 let href = a.getAttribute('href');
                 if (!href) return;
                 
-                // Limpeza de redirecionamentos comuns em motores de busca
+                // Limpeza de redirecionamentos (Google, Bing, Yahoo, DDG)
                 if (href.includes('RU=')) {
                     const match = href.match(/RU=([^/&]+)/);
                     if (match) href = decodeURIComponent(match[1]);
                 } else if (href.includes('u=a1')) {
                     const match = href.match(/u=([^&]+)/);
                     if (match) {
-                        try {
-                            href = atob(match[1].replace(/-/g, '+').replace(/_/g, '/'));
-                        } catch(e) {}
+                        try { href = atob(match[1].replace(/-/g, '+').replace(/_/g, '/')); } catch(e) {}
                     }
+                } else if (href.includes('uddg=')) {
+                    const match = href.match(/uddg=([^&]+)/);
+                    if (match) href = decodeURIComponent(match[1]);
                 }
                 
                 href = href.trim();
                 if (href.startsWith('//')) href = 'https:' + href;
                 
-                if (href.startsWith('http') && !href.includes('google.com') && !href.includes('yahoo.com') && !href.includes('bing.com') && !href.includes('microsoft.com')) {
+                // Filtrar apenas links externos reais
+                if (href.startsWith('http') && 
+                    !href.includes('google.') && !href.includes('yahoo.') && 
+                    !href.includes('bing.') && !href.includes('microsoft.') && 
+                    !href.includes('duckduckgo.') && !href.includes('yandex.')) {
+                    
                     if (domainFilter && !href.includes(domainFilter)) return;
                     allLinks.push(href);
                 }
             });
             
-            if (allLinks.length > 5) break; // Se já achou bastante em um motor, economiza proxy
+            if (allLinks.length > 15) break; 
         }
         
-        return [...new Set(allLinks)].slice(0, 10);
+        return [...new Set(allLinks)].slice(0, 20); // Aumentado para 20 links
     }
 
     async function searchPlatform(query, platformName, domain, icon, desc) {
@@ -216,47 +223,58 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // --- CONFIGURAÇÃO DE VARREDURA CORINGA (DEEP SCAN) ---
             
+            // 1. PRIORIDADE: Busca Web Global (Estilo Google)
+            promises.push(
+                webSearch(`"${query}"`).then(links => {
+                    if (links && links.length > 0) {
+                        let details = {};
+                        links.forEach((link, i) => details[`Link ${i+1}`] = link);
+                        return {
+                            source: "Google Index / Web Global",
+                            icon: "🌍",
+                            desc: "Varredura completa na internet aberta (Motores de busca integrados).",
+                            url: `https://www.google.com/search?q=%22${encodeURIComponent(query)}%22`,
+                            details
+                        };
+                    }
+                    return null;
+                })
+            );
+
+            // 2. BUSCAS ESPECÍFICAS POR CATEGORIA
             if (type === 'name') {
-                promises = [
-                    searchWikipedia(query),
-                    searchPlatform(query, "JusBrasil", "jusbrasil.com.br", "⚖️", "Envolvimentos em processos judiciais, diários oficiais e citações jurídicas."),
-                    searchPlatform(query, "Escavador", "escavador.com", "🔍", "Plataforma de busca em diários oficiais e currículos Lattes."),
-                    searchPlatform(query, "LinkedIn", "linkedin.com", "💼", "Perfis profissionais e rede de contatos corporativos."),
-                    searchPlatform(query, "Instagram", "instagram.com", "📸", "Perfis sociais e registros visuais."),
-                    searchPlatform(query, "Facebook", "facebook.com", "👥", "Perfis e menções em redes sociais."),
-                    searchPlatform(query, "Portal da Transparência", "transparencia.gov.br", "🏛️", "Registros de servidores públicos ou auxílios governamentais."),
-                    searchPlatform(query, "Jucesp / Redesim", "gov.br", "🏢", "Participação em quadros societários e abertura de empresas."),
-                    searchPlatform(query, "SlideShare / Scribd", "slideshare.net", "📄", "Documentos, apresentações ou trabalhos acadêmicos publicados."),
-                    searchPlatform(query, "Pinterest", "pinterest.com", "📌", "Painéis e interesses públicos vinculados.")
-                ];
+                promises.push(searchWikipedia(query));
+                promises.push(searchPlatform(query, "JusBrasil", "jusbrasil.com.br", "⚖️", "Envolvimentos em processos judiciais, diários oficiais e citações jurídicas."));
+                promises.push(searchPlatform(query, "Escavador", "escavador.com", "🔍", "Plataforma de busca em diários oficiais e currículos Lattes."));
+                promises.push(searchPlatform(query, "LinkedIn", "linkedin.com", "💼", "Perfis profissionais e rede de contatos corporativos."));
+                promises.push(searchPlatform(query, "Instagram", "instagram.com", "📸", "Perfis sociais e registros visuais."));
+                promises.push(searchPlatform(query, "Facebook", "facebook.com", "👥", "Perfis e menções em redes sociais."));
+                promises.push(searchPlatform(query, "Portal da Transparência", "transparencia.gov.br", "🏛️", "Registros de servidores públicos ou auxílios governamentais."));
+                promises.push(searchPlatform(query, "Jucesp / Redesim", "gov.br", "🏢", "Participação em quadros societários e abertura de empresas."));
+                promises.push(searchPlatform(query, "SlideShare / Scribd", "slideshare.net", "📄", "Documentos, apresentações ou trabalhos acadêmicos publicados."));
+                promises.push(searchPlatform(query, "Pinterest", "pinterest.com", "📌", "Painéis e interesses públicos vinculados."));
             } else if (type === 'username') {
-                promises = [
-                    searchGithub(query),
-                    searchPlatform(query, "Reddit", "reddit.com", "🤖", "Comentários, posts e interações em comunidades."),
-                    searchPlatform(query, "Twitter / X", "twitter.com", "🐦", "Microblogging e opiniões públicas."),
-                    searchPlatform(query, "Instagram", "instagram.com", "📸", "Identidade visual e perfil social."),
-                    searchPlatform(query, "TikTok", "tiktok.com", "🎵", "Presença em rede de vídeos curtos."),
-                    searchPlatform(query, "Pinterest", "pinterest.com", "📌", "Curadoria de conteúdo e interesses."),
-                    searchPlatform(query, "Medium", "medium.com", "✍️", "Artigos e publicações escritas."),
-                    searchPlatform(query, "Twitch", "twitch.tv", "🎮", "Atividade em streaming e gaming."),
-                    searchPlatform(query, "Linktree", "linktr.ee", "🔗", "Agregador de links e redes sociais.")
-                ];
+                promises.push(searchGithub(query));
+                promises.push(searchPlatform(query, "Reddit", "reddit.com", "🤖", "Comentários, posts e interações em comunidades."));
+                promises.push(searchPlatform(query, "Twitter / X", "twitter.com", "🐦", "Microblogging e opiniões públicas."));
+                promises.push(searchPlatform(query, "Instagram", "instagram.com", "📸", "Identidade visual e perfil social."));
+                promises.push(searchPlatform(query, "TikTok", "tiktok.com", "🎵", "Presença em rede de vídeos curtos."));
+                promises.push(searchPlatform(query, "Pinterest", "pinterest.com", "📌", "Curadoria de conteúdo e interesses."));
+                promises.push(searchPlatform(query, "Medium", "medium.com", "✍️", "Artigos e publicações escritas."));
+                promises.push(searchPlatform(query, "Twitch", "twitch.tv", "🎮", "Atividade em streaming e gaming."));
+                promises.push(searchPlatform(query, "Linktree", "linktr.ee", "🔗", "Agregador de links e redes sociais."));
             } else if (type === 'email') {
-                promises = [
-                    searchPlatform(query, "GitHub", "github.com", "</>", "Assinaturas de commits ou perfis de desenvolvedor."),
-                    searchPlatform(query, "Pastebin / Dumps", "pastebin.com", "📋", "Possíveis vazamentos de credenciais ou listas de e-mails."),
-                    searchPlatform(query, "Twitter / X", "twitter.com", "🐦", "Menções ou vinculações em tweets."),
-                    searchPlatform(query, "Gravatar", "gravatar.com", "🖼️", "Avatar e perfis vinculados globalmente ao e-mail."),
-                    searchPlatform(query, "Adobe / LinkedIn Leaks", "google.com", "🔓", "Dorks para verificar presença em bases de dados vazadas.")
-                ];
+                promises.push(searchPlatform(query, "GitHub", "github.com", "</>", "Assinaturas de commits ou perfis de desenvolvedor."));
+                promises.push(searchPlatform(query, "Pastebin / Dumps", "pastebin.com", "📋", "Possíveis vazamentos de credenciais ou listas de e-mails."));
+                promises.push(searchPlatform(query, "Twitter / X", "twitter.com", "🐦", "Menções ou vinculações em tweets."));
+                promises.push(searchPlatform(query, "Gravatar", "gravatar.com", "🖼️", "Avatar e perfis vinculados globalmente ao e-mail."));
+                promises.push(searchPlatform(query, "Adobe / LinkedIn Leaks", "google.com", "🔓", "Dorks para verificar presença em bases de dados vazadas."));
             } else if (type === 'phone') {
                 const cleanPhone = query.replace(/[^\d+]/g, '');
-                promises = [
-                    searchPlatform(cleanPhone, "WhatsApp Web", "wa.me", "💬", "Verificação de conta ativa no WhatsApp."),
-                    searchPlatform(cleanPhone, "Sync.Me / TrueCaller", "google.com", "📞", "Identificação de chamadas e nomes vinculados."),
-                    searchPlatform(cleanPhone, "Instagram / Facebook", "facebook.com", "📱", "Vincúlo de contatos em redes sociais."),
-                    searchPlatform(cleanPhone, "JusBrasil", "jusbrasil.com.br", "⚖️", "Menções em processos que citam contato telefônico.")
-                ];
+                promises.push(searchPlatform(cleanPhone, "WhatsApp Web", "wa.me", "💬", "Verificação de conta ativa no WhatsApp."));
+                promises.push(searchPlatform(cleanPhone, "Sync.Me / TrueCaller", "google.com", "📞", "Identificação de chamadas e nomes vinculados."));
+                promises.push(searchPlatform(cleanPhone, "Instagram / Facebook", "facebook.com", "📱", "Vincúlo de contatos em redes sociais."));
+                promises.push(searchPlatform(cleanPhone, "JusBrasil", "jusbrasil.com.br", "⚖️", "Menções em processos que citam contato telefônico."));
             }
 
             // Injeção de Dorks Avançados (Geral para todos os tipos)
