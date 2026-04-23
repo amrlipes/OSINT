@@ -181,7 +181,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function searchPlatform(query, platformName, domain, icon, desc) {
-        const links = await webSearch(`"${query}" site:${domain}`, domain);
+        // Removido as aspas em volta da query para evitar erro 400 no proxy
+        const links = await webSearch(`${query} site:${domain}`, domain);
         if (links && links.length > 0) {
             let details = {};
             links.forEach((link, i) => details[`Registro ${i+1}`] = link);
@@ -256,14 +257,14 @@ document.addEventListener('DOMContentLoaded', () => {
         dashboard.innerHTML = headerHTML;
 
         let results = [];
-        let promises = [];
+        let tasks = [];
 
         try {
             // --- CONFIGURAÇÃO DE VARREDURA CORINGA (DEEP SCAN) ---
             
             // 1. PRIORIDADE: Busca Web Global (Estilo Google)
-            promises.push(
-                webSearch(`"${query}"`).then(links => {
+            tasks.push(() =>
+                webSearch(`${query}`).then(links => {
                     if (links && links.length > 0) {
                         let details = {};
                         links.forEach((link, i) => details[`Link ${i+1}`] = link);
@@ -281,26 +282,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 2. BUSCAS ESPECÍFICAS POR CATEGORIA
             if (type === 'name') {
-                promises.push(searchWikipedia(query));
-                promises.push(searchPlatform(query, "JusBrasil", "jusbrasil.com.br", "⚖️", "Envolvimentos em processos judiciais, diários oficiais e citações jurídicas."));
-                promises.push(searchPlatform(query, "Escavador", "escavador.com", "🔍", "Plataforma de busca em diários oficiais e currículos Lattes."));
-                promises.push(searchPlatform(query, "LinkedIn", "linkedin.com", "💼", "Perfis profissionais e rede de contatos corporativos."));
-                promises.push(searchPlatform(query, "Instagram", "instagram.com", "📸", "Perfis sociais e registros visuais."));
-                promises.push(searchPlatform(query, "Facebook", "facebook.com", "👥", "Perfis e menções em redes sociais."));
-                promises.push(searchPlatform(query, "Portal da Transparência", "transparencia.gov.br", "🏛️", "Registros de servidores públicos ou auxílios governamentais."));
-                promises.push(searchPlatform(query, "Jucesp / Redesim", "gov.br", "🏢", "Participação em quadros societários e abertura de empresas."));
-                promises.push(searchPlatform(query, "SlideShare / Scribd", "slideshare.net", "📄", "Documentos, apresentações ou trabalhos acadêmicos publicados."));
-                promises.push(searchPlatform(query, "Pinterest", "pinterest.com", "📌", "Painéis e interesses públicos vinculados."));
+                tasks.push(() => searchWikipedia(query));
+                tasks.push(() => searchPlatform(query, "JusBrasil", "jusbrasil.com.br", "⚖️", "Envolvimentos em processos judiciais, diários oficiais e citações jurídicas."));
+                tasks.push(() => searchPlatform(query, "Escavador", "escavador.com", "🔍", "Plataforma de busca em diários oficiais e currículos Lattes."));
+                tasks.push(() => searchPlatform(query, "LinkedIn", "linkedin.com", "💼", "Perfis profissionais e rede de contatos corporativos."));
+                tasks.push(() => searchPlatform(query, "Instagram", "instagram.com", "📸", "Perfis sociais e registros visuais."));
+                tasks.push(() => searchPlatform(query, "Facebook", "facebook.com", "👥", "Perfis e menções em redes sociais."));
+                tasks.push(() => searchPlatform(query, "Portal da Transparência", "transparencia.gov.br", "🏛️", "Registros de servidores públicos ou auxílios governamentais."));
+                tasks.push(() => searchPlatform(query, "Jucesp / Redesim", "gov.br", "🏢", "Participação em quadros societários e abertura de empresas."));
+                tasks.push(() => searchPlatform(query, "SlideShare / Scribd", "slideshare.net", "📄", "Documentos, apresentações ou trabalhos acadêmicos publicados."));
+                tasks.push(() => searchPlatform(query, "Pinterest", "pinterest.com", "📌", "Painéis e interesses públicos vinculados."));
             } else if (type === 'username') {
-                promises.push(searchGithub(query));
-                promises.push(searchPlatform(query, "Reddit", "reddit.com", "🤖", "Comentários, posts e interações em comunidades."));
-                promises.push(searchPlatform(query, "Twitter / X", "twitter.com", "🐦", "Microblogging e opiniões públicas."));
-                promises.push(searchPlatform(query, "Instagram", "instagram.com", "📸", "Identidade visual e perfil social."));
-                promises.push(searchPlatform(query, "TikTok", "tiktok.com", "🎵", "Presença em rede de vídeos curtos."));
-                promises.push(searchPlatform(query, "Pinterest", "pinterest.com", "📌", "Curadoria de conteúdo e interesses."));
-                promises.push(searchPlatform(query, "Medium", "medium.com", "✍️", "Artigos e publicações escritas."));
-                promises.push(searchPlatform(query, "Twitch", "twitch.tv", "🎮", "Atividade em streaming e gaming."));
-                promises.push(searchPlatform(query, "Linktree", "linktr.ee", "🔗", "Agregador de links e redes sociais."));
+                tasks.push(() => searchGithub(query));
+                tasks.push(() => searchPlatform(query, "Reddit", "reddit.com", "🤖", "Comentários, posts e interações em comunidades."));
+                tasks.push(() => searchPlatform(query, "Twitter / X", "twitter.com", "🐦", "Microblogging e opiniões públicas."));
+                tasks.push(() => searchPlatform(query, "Instagram", "instagram.com", "📸", "Identidade visual e perfil social."));
+                tasks.push(() => searchPlatform(query, "TikTok", "tiktok.com", "🎵", "Presença em rede de vídeos curtos."));
+                tasks.push(() => searchPlatform(query, "Pinterest", "pinterest.com", "📌", "Curadoria de conteúdo e interesses."));
+                tasks.push(() => searchPlatform(query, "Medium", "medium.com", "✍️", "Artigos e publicações escritas."));
+                tasks.push(() => searchPlatform(query, "Twitch", "twitch.tv", "🎮", "Atividade em streaming e gaming."));
+                tasks.push(() => searchPlatform(query, "Linktree", "linktr.ee", "🔗", "Agregador de links e redes sociais."));
             } else if (type === 'email') {
                 const usernamePart = query.split('@')[0];
                 
@@ -319,8 +320,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ];
 
                 socialNetworks.forEach(net => {
-                    promises.push(
-                        webSearch(`"${query}" site:${net.domain}`).then(links => {
+                    tasks.push(() =>
+                        webSearch(`${query} site:${net.domain}`).then(links => {
                             if (links && links.length > 0) {
                                 let details = {};
                                 links.forEach((link, i) => details[`Perfil / Menção ${i+1}`] = link);
@@ -338,8 +339,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 // 2. Busca por Identidade Global
-                promises.push(
-                    webSearch(`"${query}" site:gravatar.com OR site:foursquare.com`).then(links => {
+                tasks.push(() =>
+                    webSearch(`${query} site:gravatar.com OR site:foursquare.com`).then(links => {
                         if (links && links.length > 0) {
                             let details = {};
                             links.forEach((link, i) => details[`Identidade ${i+1}`] = link);
@@ -356,11 +357,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
 
                 // 3. Vazamentos de Credenciais em Dumps
-                promises.push(searchPlatform(query, "Pastebin / Ghostbin", "pastebin.com", "📋", "Possíveis vazamentos de credenciais em repositórios de texto puro."));
+                tasks.push(() => searchPlatform(query, "Pastebin / Ghostbin", "pastebin.com", "📋", "Possíveis vazamentos de credenciais em repositórios de texto puro."));
 
                 // 4. Vazamentos de Senhas (Deep Web / Open Web)
-                promises.push(
-                    webSearch(`"${query}" intext:password OR intext:senha OR intext:leak`).then(links => {
+                tasks.push(() =>
+                    webSearch(`${query} intext:password OR intext:senha OR intext:leak`).then(links => {
                         if (links && links.length > 0) {
                             let details = {};
                             links.forEach((link, i) => details[`Registro de Vazamento ${i+1}`] = link);
@@ -377,8 +378,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
 
                 // 5. Documentos e Infraestrutura Corporativa
-                promises.push(
-                    webSearch(`"${query}" site:trello.com OR site:docs.google.com OR site:scribd.com OR site:slideshare.net`).then(links => {
+                tasks.push(() =>
+                    webSearch(`${query} site:trello.com OR site:docs.google.com OR site:scribd.com OR site:slideshare.net`).then(links => {
                         if (links && links.length > 0) {
                             let details = {};
                             links.forEach((link, i) => details[`Documento Público ${i+1}`] = link);
@@ -395,8 +396,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
 
                 // 6. Investigação Híbrida do Username (Engenharia Reversa)
-                promises.push(
-                    webSearch(`"${usernamePart}" (site:instagram.com OR site:twitter.com OR site:tiktok.com OR site:reddit.com OR site:linkedin.com)`).then(links => {
+                tasks.push(() =>
+                    webSearch(`${usernamePart} (site:instagram.com OR site:twitter.com OR site:tiktok.com OR site:reddit.com OR site:linkedin.com)`).then(links => {
                         // Filtro estrito: garantir que o link contenha o prefixo de usuário
                         const probableProfiles = links.filter(link => link.toLowerCase().includes(usernamePart.toLowerCase()));
                         if (probableProfiles && probableProfiles.length > 0) {
@@ -417,14 +418,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Injeção de Dorks Avançados (Geral para todos os tipos)
             const commonDorks = [
-                { dork: `"${query}" filetype:pdf`, name: "Documentos PDF", icon: "📄", desc: "PDFs indexados contendo o alvo." },
-                { dork: `"${query}" filetype:xlsx OR filetype:csv`, name: "Planilhas / Bases", icon: "📊", desc: "Arquivos de dados ou listas vazadas." },
-                { dork: `"${query}" site:pastebin.com OR site:ghostbin.com`, name: "Code Pastes", icon: "⌨️", desc: "Texto puro em sites de compartilhamento de código." },
-                { dork: `"${query}" site:docs.google.com`, name: "Google Drive", icon: "💾", desc: "Arquivos públicos no ecossistema Google." }
+                { dork: `${query} filetype:pdf`, name: "Documentos PDF", icon: "📄", desc: "PDFs indexados contendo o alvo." },
+                { dork: `${query} filetype:xlsx OR filetype:csv`, name: "Planilhas / Bases", icon: "📊", desc: "Arquivos de dados ou listas vazadas." },
+                { dork: `${query} site:pastebin.com OR site:ghostbin.com`, name: "Code Pastes", icon: "⌨️", desc: "Texto puro em sites de compartilhamento de código." },
+                { dork: `${query} site:docs.google.com`, name: "Google Drive", icon: "💾", desc: "Arquivos públicos no ecossistema Google." }
             ];
 
             commonDorks.forEach(d => {
-                promises.push(
+                tasks.push(() =>
                     webSearch(d.dork).then(links => {
                         if (links && links.length > 0) {
                             let details = {};
@@ -443,8 +444,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Adicionar sempre uma busca Web Geral
-            promises.push(
-                webSearch(`"${query}"`).then(links => {
+            tasks.push(() =>
+                webSearch(`${query}`).then(links => {
                     if (links && links.length > 0) {
                         let details = {};
                         links.forEach((link, i) => details[`Pegada ${i+1}`] = link);
@@ -461,11 +462,12 @@ document.addEventListener('DOMContentLoaded', () => {
             );
 
             // Executar em lotes (batching) para não sobrecarregar o proxy e tomar block
-            const batchSize = 3;
-            for (let i = 0; i < promises.length; i += batchSize) {
-                const batch = promises.slice(i, i + batchSize);
+            const batchSize = 2; // Reduzido para 2 para evitar 429 Too Many Requests
+            for (let i = 0; i < tasks.length; i += batchSize) {
+                const batchTasks = tasks.slice(i, i + batchSize);
                 try {
-                    const completed = await Promise.allSettled(batch);
+                    const batchPromises = batchTasks.map(t => t());
+                    const completed = await Promise.allSettled(batchPromises);
                     completed.forEach(res => {
                         if (res.status === 'fulfilled' && res.value) {
                             results.push(res.value);
@@ -475,9 +477,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error("Batch error:", batchErr);
                 }
                 
-                // Pausa curta entre lotes
-                if (i + batchSize < promises.length) {
-                    await new Promise(r => setTimeout(r, 600));
+                // Pausa maior entre lotes
+                if (i + batchSize < tasks.length) {
+                    await new Promise(r => setTimeout(r, 2000));
                 }
             }
 
