@@ -471,16 +471,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
             );
 
-            // Executar em lotes (batching) para não sobrecarregar o proxy e tomar block
+            // Função auxiliar para renderizar um resultado individual na tela
+            function renderResult(result) {
+                const loader = document.getElementById('results-loader');
+                if (loader && !loader.dataset.hidden) {
+                    loader.style.display = 'none';
+                    loader.dataset.hidden = 'true';
+                }
+
+                logToTerminal(`[INFO] Bloco de dados descriptografado: ${result.source}`, 'success');
+                
+                let detailsHTML = '';
+                if (result.details) {
+                    for (const [key, val] of Object.entries(result.details)) {
+                        if (typeof val === 'string' && val.startsWith('http')) {
+                            detailsHTML += `<div style="margin-bottom:8px; padding-left:10px; border-left:2px solid var(--accent-primary)"><strong>${key}:</strong> <br> <a href="${val}" target="_blank" style="color:var(--text-main); font-size:0.8rem; word-break: break-all; text-decoration: none;">${val}</a></div>`;
+                        } else {
+                            detailsHTML += `<div style="margin-bottom:8px;"><strong>${key}:</strong> <span style="color:var(--text-main)">${val}</span></div>`;
+                        }
+                    }
+                }
+
+                const section = document.createElement('div');
+                section.className = 'category-section';
+                section.style.opacity = '0';
+                section.style.animation = 'fadeIn 0.5s forwards';
+                section.innerHTML = `
+                    <div class="category-title"><span style="font-size: 1.5rem">${result.icon}</span> ${result.source}</div>
+                    <div class="source-card" style="margin-top: 10px;">
+                        <div class="source-desc" style="font-size:1rem; margin-bottom:15px; color: var(--accent-primary);">${result.desc}</div>
+                        <div class="source-details" style="font-family: var(--font-code); font-size:0.9rem; color:var(--text-muted); background:rgba(0,0,0,0.5); padding:10px; border-radius:3px; max-height: 250px; overflow-y: auto;">
+                            ${detailsHTML}
+                        </div>
+                        <a href="${result.url}" target="_blank" class="source-btn" style="margin-top: 15px; width: max-content; padding: 10px 20px;">ABRIR BUSCA ORIGINÁRIA ➔</a>
+                    </div>
+                `;
+                dashboard.appendChild(section);
+                dashboard.scrollTop = dashboard.scrollHeight;
+            }
+
+            // Executar em lotes (batching) e renderizar dinamicamente
             const batchSize = 2; // Reduzido para 2 para evitar 429 Too Many Requests
             for (let i = 0; i < tasks.length; i += batchSize) {
                 const batchTasks = tasks.slice(i, i + batchSize);
+                
+                // Atualiza o loader
+                const loader = document.getElementById('results-loader');
+                if (loader && !loader.dataset.hidden) {
+                    loader.innerHTML = `<div class="dot blinking" style="display: inline-block;"></div> Processando ${Math.min(i + batchSize, tasks.length)} de ${tasks.length} alvos...`;
+                }
+
                 try {
                     const batchPromises = batchTasks.map(t => t());
                     const completed = await Promise.allSettled(batchPromises);
-                    completed.forEach(res => {
+                    completed.forEach((res, idx) => {
                         if (res.status === 'fulfilled' && res.value) {
                             results.push(res.value);
+                            // Pequeno delay visual para não jogar tudo junto na tela instantaneamente
+                            setTimeout(() => renderResult(res.value), idx * 200);
                         }
                     });
                 } catch (batchErr) {
@@ -493,54 +541,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Remover loader
-            const loader = document.getElementById('results-loader');
-            if(loader) loader.remove();
+            // Finalização
+            const loaderFinal = document.getElementById('results-loader');
+            if (loaderFinal && !loaderFinal.dataset.hidden) loaderFinal.remove();
 
             if (results.length === 0) {
                 logToTerminal(`[INFO] Nenhum rastro direto encontrado nas bases.`, 'warning');
                 dashboard.innerHTML += `<div style="text-align:center; color:var(--text-muted); margin-top:30px; font-size: 1.1rem; border: 1px dashed var(--accent-primary); padding: 20px;">Nenhum dado claro encontrado nas bases conectadas.</div>`;
-                return;
-            }
-
-            // Render categories dynamically
-            results.forEach((result, idx) => {
-                setTimeout(() => {
-                    logToTerminal(`[INFO] Bloco de dados descriptografado: ${result.source}`, 'success');
-                    
-                    let detailsHTML = '';
-                    if (result.details) {
-                        for (const [key, val] of Object.entries(result.details)) {
-                            if (typeof val === 'string' && val.startsWith('http')) {
-                                detailsHTML += `<div style="margin-bottom:8px; padding-left:10px; border-left:2px solid var(--accent-primary)"><strong>${key}:</strong> <br> <a href="${val}" target="_blank" style="color:var(--text-main); font-size:0.8rem; word-break: break-all; text-decoration: none;">${val}</a></div>`;
-                            } else {
-                                detailsHTML += `<div style="margin-bottom:8px;"><strong>${key}:</strong> <span style="color:var(--text-main)">${val}</span></div>`;
-                            }
-                        }
-                    }
-
-                    const section = document.createElement('div');
-                    section.className = 'category-section';
-                    section.innerHTML = `
-                        <div class="category-title"><span style="font-size: 1.5rem">${result.icon}</span> ${result.source}</div>
-                        <div class="source-card" style="margin-top: 10px;">
-                            <div class="source-desc" style="font-size:1rem; margin-bottom:15px; color: var(--accent-primary);">${result.desc}</div>
-                            <div class="source-details" style="font-family: var(--font-code); font-size:0.9rem; color:var(--text-muted); background:rgba(0,0,0,0.5); padding:10px; border-radius:3px; max-height: 250px; overflow-y: auto;">
-                                ${detailsHTML}
-                            </div>
-                            <a href="${result.url}" target="_blank" class="source-btn" style="margin-top: 15px; width: max-content; padding: 10px 20px;">ABRIR BUSCA ORIGINÁRIA ➔</a>
-                        </div>
-                    `;
-                    dashboard.appendChild(section);
-                    dashboard.scrollTop = dashboard.scrollHeight;
-                    
-                }, idx * 400); 
-            });
-            
-            const totalDelay = results.length * 400 + 500;
-            setTimeout(() => {
+            } else {
                 logToTerminal(`[SUCESSO] Coleta OSINT finalizada no navegador.`, 'success');
-            }, totalDelay);
+            }
 
         } catch (error) {
             logToTerminal(`[ERRO] Ocorreu uma falha no processamento via proxy.`, 'error');
