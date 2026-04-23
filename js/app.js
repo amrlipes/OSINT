@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- OSINT ENGINE (100% Frontend via CORS Proxy) ---
 
-    async function fetchWithProxy(url, timeout = 15000) {
+    async function fetchWithProxy(url, timeout = 5000) {
         const controller = new AbortController();
         const id = setTimeout(() => controller.abort(), timeout);
 
@@ -183,18 +183,21 @@ document.addEventListener('DOMContentLoaded', () => {
     async function searchPlatform(query, platformName, domain, icon, desc) {
         // Removido as aspas em volta da query para evitar erro 400 no proxy
         const links = await webSearch(`${query} site:${domain}`, domain);
+        let details = {};
+        
         if (links && links.length > 0) {
-            let details = {};
             links.forEach((link, i) => details[`Registro ${i+1}`] = link);
-            return {
-                source: platformName,
-                icon: icon,
-                desc: desc,
-                url: `https://www.google.com/search?q=%22${encodeURIComponent(query)}%22+site%3A${domain}`,
-                details
-            };
+        } else {
+            details["Status"] = "Extração automatizada bloqueada pelo buscador. Acesse a busca originária no botão abaixo.";
         }
-        return null;
+
+        return {
+            source: platformName,
+            icon: icon,
+            desc: desc,
+            url: `https://www.google.com/search?q=${encodeURIComponent(query)}+site%3A${domain}`,
+            details
+        };
     }
 
     async function searchWikipedia(query) {
@@ -265,18 +268,19 @@ document.addEventListener('DOMContentLoaded', () => {
             // 1. PRIORIDADE: Busca Web Global (Estilo Google)
             tasks.push(() =>
                 webSearch(`${query}`).then(links => {
+                    let details = {};
                     if (links && links.length > 0) {
-                        let details = {};
                         links.forEach((link, i) => details[`Link ${i+1}`] = link);
-                        return {
-                            source: "Google Index / Web Global",
-                            icon: "🌍",
-                            desc: "Varredura completa na internet aberta (Motores de busca integrados).",
-                            url: `https://www.google.com/search?q=%22${encodeURIComponent(query)}%22`,
-                            details
-                        };
+                    } else {
+                        details["Status"] = "Resultados amplos devem ser visualizados manualmente devido à restrição do proxy.";
                     }
-                    return null;
+                    return {
+                        source: "Google Index / Web Global",
+                        icon: "🌍",
+                        desc: "Varredura completa na internet aberta (Motores de busca integrados).",
+                        url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+                        details
+                    };
                 })
             );
 
@@ -322,18 +326,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 socialNetworks.forEach(net => {
                     tasks.push(() =>
                         webSearch(`${query} site:${net.domain}`).then(links => {
+                            let details = {};
                             if (links && links.length > 0) {
-                                let details = {};
                                 links.forEach((link, i) => details[`Perfil / Menção ${i+1}`] = link);
-                                return {
-                                    source: net.name,
-                                    icon: net.icon,
-                                    desc: `E-mail detectado publicamente na plataforma ${net.name}.`,
-                                    url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" site:${net.domain}`)}`,
-                                    details
-                                };
+                            } else {
+                                details["Status"] = "Acesso bloqueado via script. Acesse diretamente.";
                             }
-                            return null;
+                            return {
+                                source: net.name,
+                                icon: net.icon,
+                                desc: `E-mail detectado publicamente na plataforma ${net.name}.`,
+                                url: `https://www.google.com/search?q=${encodeURIComponent(`${query} site:${net.domain}`)}`,
+                                details
+                            };
                         })
                     );
                 });
@@ -341,18 +346,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 2. Busca por Identidade Global
                 tasks.push(() =>
                     webSearch(`${query} site:gravatar.com OR site:foursquare.com`).then(links => {
+                        let details = {};
                         if (links && links.length > 0) {
-                            let details = {};
                             links.forEach((link, i) => details[`Identidade ${i+1}`] = link);
-                            return {
-                                source: "Identidade Global (Gravatar & Afins)",
-                                icon: "🖼️",
-                                desc: "Perfil global vinculado a este endereço de e-mail.",
-                                url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" site:gravatar.com OR site:foursquare.com`)}`,
-                                details
-                            };
+                        } else {
+                            details["Status"] = "Verificação manual recomendada.";
                         }
-                        return null;
+                        return {
+                            source: "Identidade Global (Gravatar & Afins)",
+                            icon: "🖼️",
+                            desc: "Perfil global vinculado a este endereço de e-mail.",
+                            url: `https://www.google.com/search?q=${encodeURIComponent(`${query} site:gravatar.com OR site:foursquare.com`)}`,
+                            details
+                        };
                     })
                 );
 
@@ -362,56 +368,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 4. Vazamentos de Senhas (Deep Web / Open Web)
                 tasks.push(() =>
                     webSearch(`${query} intext:password OR intext:senha OR intext:leak`).then(links => {
+                        let details = {};
                         if (links && links.length > 0) {
-                            let details = {};
                             links.forEach((link, i) => details[`Registro de Vazamento ${i+1}`] = link);
-                            return {
-                                source: "Vazamentos de Credenciais (Web Indexada)",
-                                icon: "🔓",
-                                desc: "Páginas indicando possível exposição de dados sensíveis ou senhas vinculadas ao e-mail.",
-                                url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" intext:password OR intext:senha OR intext:leak`)}`,
-                                details
-                            };
+                        } else {
+                            details["Status"] = "Dados de vazamento requerem verificação manual via Google Dorks.";
                         }
-                        return null;
+                        return {
+                            source: "Vazamentos de Credenciais (Web Indexada)",
+                            icon: "🔓",
+                            desc: "Páginas indicando possível exposição de dados sensíveis ou senhas vinculadas ao e-mail.",
+                            url: `https://www.google.com/search?q=${encodeURIComponent(`${query} intext:password OR intext:senha OR intext:leak`)}`,
+                            details
+                        };
                     })
                 );
 
                 // 5. Documentos e Infraestrutura Corporativa
                 tasks.push(() =>
                     webSearch(`${query} site:trello.com OR site:docs.google.com OR site:scribd.com OR site:slideshare.net`).then(links => {
+                        let details = {};
                         if (links && links.length > 0) {
-                            let details = {};
                             links.forEach((link, i) => details[`Documento Público ${i+1}`] = link);
-                            return {
-                                source: "Documentos e Boards Corporativos",
-                                icon: "📁",
-                                desc: "O e-mail foi encontrado exposto em documentos, planilhas ou sistemas de gestão de projetos.",
-                                url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" site:trello.com OR site:docs.google.com OR site:scribd.com OR site:slideshare.net`)}`,
-                                details
-                            };
+                        } else {
+                            details["Status"] = "Busca bloqueada. Consulte diretamente via navegador.";
                         }
-                        return null;
+                        return {
+                            source: "Documentos e Boards Corporativos",
+                            icon: "📁",
+                            desc: "O e-mail foi encontrado exposto em documentos, planilhas ou sistemas de gestão de projetos.",
+                            url: `https://www.google.com/search?q=${encodeURIComponent(`${query} site:trello.com OR site:docs.google.com OR site:scribd.com OR site:slideshare.net`)}`,
+                            details
+                        };
                     })
                 );
 
                 // 6. Investigação Híbrida do Username (Engenharia Reversa)
                 tasks.push(() =>
                     webSearch(`${usernamePart} (site:instagram.com OR site:twitter.com OR site:tiktok.com OR site:reddit.com OR site:linkedin.com)`).then(links => {
-                        // Filtro estrito: garantir que o link contenha o prefixo de usuário
-                        const probableProfiles = links.filter(link => link.toLowerCase().includes(usernamePart.toLowerCase()));
+                        let details = {};
+                        const probableProfiles = links ? links.filter(link => link.toLowerCase().includes(usernamePart.toLowerCase())) : [];
                         if (probableProfiles && probableProfiles.length > 0) {
-                            let details = {};
                             probableProfiles.forEach((link, i) => details[`Link Filtrado ${i+1}`] = link);
-                            return {
-                                source: "Associação de Identidade (Username OSINT)",
-                                icon: "🕵️",
-                                desc: `Varredura ativa nas redes usando o prefixo [${usernamePart}] como ponteiro lógico. Apenas links de alta probabilidade foram retidos.`,
-                                url: `https://www.google.com/search?q=${encodeURIComponent(`"${usernamePart}" (site:instagram.com OR site:twitter.com OR site:tiktok.com OR site:reddit.com OR site:linkedin.com)`)}`,
-                                details
-                            };
+                        } else {
+                            details["Status"] = "Requer análise manual clicando na busca originária.";
                         }
-                        return null;
+                        return {
+                            source: "Associação de Identidade (Username OSINT)",
+                            icon: "🕵️",
+                            desc: `Varredura ativa nas redes usando o prefixo [${usernamePart}] como ponteiro lógico.`,
+                            url: `https://www.google.com/search?q=${encodeURIComponent(`${usernamePart} (site:instagram.com OR site:twitter.com OR site:tiktok.com OR site:reddit.com OR site:linkedin.com)`)}`,
+                            details
+                        };
                     })
                 );
             }
@@ -427,18 +435,19 @@ document.addEventListener('DOMContentLoaded', () => {
             commonDorks.forEach(d => {
                 tasks.push(() =>
                     webSearch(d.dork).then(links => {
+                        let details = {};
                         if (links && links.length > 0) {
-                            let details = {};
                             links.forEach((link, i) => details[`Registro ${i+1}`] = link);
-                            return {
-                                source: d.name,
-                                icon: d.icon,
-                                desc: d.desc,
-                                url: `https://www.google.com/search?q=${encodeURIComponent(d.dork)}`,
-                                details
-                            };
+                        } else {
+                            details["Status"] = "Execute o Dork manualmente clicando abaixo.";
                         }
-                        return null;
+                        return {
+                            source: d.name,
+                            icon: d.icon,
+                            desc: d.desc,
+                            url: `https://www.google.com/search?q=${encodeURIComponent(d.dork)}`,
+                            details
+                        };
                     })
                 );
             });
@@ -446,18 +455,19 @@ document.addEventListener('DOMContentLoaded', () => {
             // Adicionar sempre uma busca Web Geral
             tasks.push(() =>
                 webSearch(`${query}`).then(links => {
+                    let details = {};
                     if (links && links.length > 0) {
-                        let details = {};
                         links.forEach((link, i) => details[`Pegada ${i+1}`] = link);
-                        return {
-                            source: "Presença Web Global",
-                            icon: "🌐",
-                            desc: "Resultados gerais em toda a internet aberta.",
-                            url: `https://www.google.com/search?q=%22${encodeURIComponent(query)}%22`,
-                            details
-                        };
+                    } else {
+                        details["Status"] = "Presença global necessita varredura manual.";
                     }
-                    return null;
+                    return {
+                        source: "Presença Web Global",
+                        icon: "🌐",
+                        desc: "Resultados gerais em toda a internet aberta.",
+                        url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+                        details
+                    };
                 })
             );
 
