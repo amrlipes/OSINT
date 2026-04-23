@@ -308,120 +308,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 tasks.push(() => searchPlatform(query, "Linktree", "linktr.ee", "🔗", "Agregador de links e redes sociais."));
             } else if (type === 'email') {
                 const usernamePart = query.split('@')[0];
+                const domainPart = query.split('@')[1] || '';
+
+                // 1. Buscas Diretas Pelo E-mail (Vazamentos, Documentos e Pastes)
+                tasks.push(() => searchPlatform(`"${query}"`, "Vazamentos (Pastebin/Pastes)", "pastebin.com OR site:ghostbin.com OR site:hastebin.com", "📋", "Buscando o e-mail exato em repositórios de texto para encontrar possíveis vazamentos de dados."));
                 
-                // 1. Identificação de Redes Sociais Diretas (O e-mail citado explicitamente)
-                const socialNetworks = [
-                    { name: "Facebook", domain: "facebook.com", icon: "👥" },
-                    { name: "LinkedIn", domain: "linkedin.com", icon: "💼" },
-                    { name: "Twitter / X", domain: "twitter.com", icon: "🐦" },
-                    { name: "Instagram", domain: "instagram.com", icon: "📸" },
-                    { name: "TikTok", domain: "tiktok.com", icon: "🎵" },
-                    { name: "YouTube", domain: "youtube.com", icon: "▶️" },
-                    { name: "Reddit", domain: "reddit.com", icon: "🤖" },
-                    { name: "Pinterest", domain: "pinterest.com", icon: "📌" },
-                    { name: "GitHub", domain: "github.com", icon: "</>" },
-                    { name: "Medium", domain: "medium.com", icon: "✍️" }
-                ];
-
-                socialNetworks.forEach(net => {
-                    tasks.push(() =>
-                        webSearch(`${query} site:${net.domain}`).then(links => {
-                            let details = {};
-                            if (links && links.length > 0) {
-                                links.forEach((link, i) => details[`Perfil / Menção ${i+1}`] = link);
-                            } else {
-                                details["Status"] = "Acesso bloqueado via script. Acesse diretamente.";
-                            }
-                            return {
-                                source: net.name,
-                                icon: net.icon,
-                                desc: `E-mail detectado publicamente na plataforma ${net.name}.`,
-                                url: `https://www.google.com/search?q=${encodeURIComponent(`${query} site:${net.domain}`)}`,
-                                details
-                            };
-                        })
-                    );
-                });
-
-                // 2. Busca por Identidade Global
                 tasks.push(() =>
-                    webSearch(`${query} site:gravatar.com OR site:foursquare.com`).then(links => {
-                        let details = {};
-                        if (links && links.length > 0) {
-                            links.forEach((link, i) => details[`Identidade ${i+1}`] = link);
-                        } else {
-                            details["Status"] = "Verificação manual recomendada.";
-                        }
-                        return {
-                            source: "Identidade Global (Gravatar & Afins)",
-                            icon: "🖼️",
-                            desc: "Perfil global vinculado a este endereço de e-mail.",
-                            url: `https://www.google.com/search?q=${encodeURIComponent(`${query} site:gravatar.com OR site:foursquare.com`)}`,
-                            details
-                        };
-                    })
-                );
-
-                // 3. Vazamentos de Credenciais em Dumps
-                tasks.push(() => searchPlatform(query, "Pastebin / Ghostbin", "pastebin.com", "📋", "Possíveis vazamentos de credenciais em repositórios de texto puro."));
-
-                // 4. Vazamentos de Senhas (Deep Web / Open Web)
-                tasks.push(() =>
-                    webSearch(`${query} intext:password OR intext:senha OR intext:leak`).then(links => {
+                    webSearch(`"${query}" intext:password OR intext:senha OR intext:leak`).then(links => {
                         let details = {};
                         if (links && links.length > 0) {
                             links.forEach((link, i) => details[`Registro de Vazamento ${i+1}`] = link);
                         } else {
-                            details["Status"] = "Dados de vazamento requerem verificação manual via Google Dorks.";
+                            details["Status"] = "Dados de vazamento requerem verificação manual via Dorks.";
                         }
                         return {
-                            source: "Vazamentos de Credenciais (Web Indexada)",
+                            source: "Credenciais Expostas (Deep/Open Web)",
                             icon: "🔓",
-                            desc: "Páginas indicando possível exposição de dados sensíveis ou senhas vinculadas ao e-mail.",
-                            url: `https://www.google.com/search?q=${encodeURIComponent(`${query} intext:password OR intext:senha OR intext:leak`)}`,
+                            desc: "Verificando fóruns e páginas que indicam exposição de senhas vinculadas ao e-mail.",
+                            url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" intext:password OR intext:senha OR intext:leak`)}`,
                             details
                         };
                     })
                 );
 
-                // 5. Documentos e Infraestrutura Corporativa
+                // 2. Buscas em Plataformas Específicas que Exibem E-mail
+                tasks.push(() => searchPlatform(`"${query}"`, "Gravatar / Hubs Globais", "gravatar.com OR site:foursquare.com OR site:medium.com", "🖼️", "Plataformas que indexam e-mails publicamente para associar avatares e perfis corporativos."));
+                tasks.push(() => searchPlatform(`"${query}"`, "GitHub (Commits e Issues)", "github.com", "</>", "Repositórios, logs de commits de código-fonte e fóruns técnicos que citam este e-mail explicitamente."));
+                
+                // Se for um e-mail corporativo, faz um OSINT do domínio
+                if (domainPart && domainPart !== 'gmail.com' && domainPart !== 'outlook.com' && domainPart !== 'hotmail.com' && domainPart !== 'yahoo.com') {
+                    tasks.push(() => searchPlatform(domainPart, `Domínio Corporativo (${domainPart})`, domainPart, "🏢", "Investigação sobre o domínio da empresa/organização para mapear a infraestrutura e colegas de trabalho."));
+                }
+
+                // 3. Engenharia Reversa: Extração de Username
+                // Na maioria das vezes, o alvo usa o prefixo do e-mail nas redes sociais.
                 tasks.push(() =>
-                    webSearch(`${query} site:trello.com OR site:docs.google.com OR site:scribd.com OR site:slideshare.net`).then(links => {
+                    webSearch(`"${usernamePart}"`).then(links => {
                         let details = {};
                         if (links && links.length > 0) {
-                            links.forEach((link, i) => details[`Documento Público ${i+1}`] = link);
+                            links.forEach((link, i) => details[`Descoberta Global ${i+1}`] = link);
                         } else {
-                            details["Status"] = "Busca bloqueada. Consulte diretamente via navegador.";
+                            details["Status"] = "Acesso manual recomendado.";
                         }
                         return {
-                            source: "Documentos e Boards Corporativos",
-                            icon: "📁",
-                            desc: "O e-mail foi encontrado exposto em documentos, planilhas ou sistemas de gestão de projetos.",
-                            url: `https://www.google.com/search?q=${encodeURIComponent(`${query} site:trello.com OR site:docs.google.com OR site:scribd.com OR site:slideshare.net`)}`,
+                            source: "Engenharia Reversa (OSINT de Username)",
+                            icon: "🕵️",
+                            desc: `A ferramenta deduziu o username [${usernamePart}] a partir do e-mail. Esta é a varredura global desse prefixo.`,
+                            url: `https://www.google.com/search?q=${encodeURIComponent(`"${usernamePart}"`)}`,
                             details
                         };
                     })
                 );
 
-                // 6. Investigação Híbrida do Username (Engenharia Reversa)
-                tasks.push(() =>
-                    webSearch(`${usernamePart} (site:instagram.com OR site:twitter.com OR site:tiktok.com OR site:reddit.com OR site:linkedin.com)`).then(links => {
-                        let details = {};
-                        const probableProfiles = links ? links.filter(link => link.toLowerCase().includes(usernamePart.toLowerCase())) : [];
-                        if (probableProfiles && probableProfiles.length > 0) {
-                            probableProfiles.forEach((link, i) => details[`Link Filtrado ${i+1}`] = link);
-                        } else {
-                            details["Status"] = "Requer análise manual clicando na busca originária.";
-                        }
-                        return {
-                            source: "Associação de Identidade (Username OSINT)",
-                            icon: "🕵️",
-                            desc: `Varredura ativa nas redes usando o prefixo [${usernamePart}] como ponteiro lógico.`,
-                            url: `https://www.google.com/search?q=${encodeURIComponent(`${usernamePart} (site:instagram.com OR site:twitter.com OR site:tiktok.com OR site:reddit.com OR site:linkedin.com)`)}`,
-                            details
-                        };
-                    })
-                );
+                // 4. Varredura do Username Deduzido nas Redes Sociais
+                // Diferente de pesquisar o e-mail exato, pesquisar o username tem 90% mais eficácia no Instagram/Twitter.
+                tasks.push(() => searchPlatform(usernamePart, "Instagram (Via Username)", "instagram.com", "📸", `Busca de perfis no Instagram usando o prefixo deduzido [${usernamePart}].`));
+                tasks.push(() => searchPlatform(usernamePart, "Twitter / X (Via Username)", "twitter.com", "🐦", `Busca de perfis no Twitter usando o prefixo deduzido [${usernamePart}].`));
+                tasks.push(() => searchPlatform(usernamePart, "LinkedIn (Via Username)", "linkedin.com", "💼", `Busca profissional associada ao termo [${usernamePart}].`));
+                tasks.push(() => searchPlatform(usernamePart, "TikTok (Via Username)", "tiktok.com", "🎵", `Busca de perfis de vídeo usando o prefixo deduzido [${usernamePart}].`));
             }
 
             // Injeção de Dorks Avançados (Geral para todos os tipos)
