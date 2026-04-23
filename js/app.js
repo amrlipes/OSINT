@@ -272,11 +272,62 @@ document.addEventListener('DOMContentLoaded', () => {
                 promises.push(searchPlatform(query, "Twitch", "twitch.tv", "🎮", "Atividade em streaming e gaming."));
                 promises.push(searchPlatform(query, "Linktree", "linktr.ee", "🔗", "Agregador de links e redes sociais."));
             } else if (type === 'email') {
+                const usernamePart = query.split('@')[0];
+                
                 promises.push(searchPlatform(query, "GitHub", "github.com", "</>", "Assinaturas de commits ou perfis de desenvolvedor."));
-                promises.push(searchPlatform(query, "Pastebin / Dumps", "pastebin.com", "📋", "Possíveis vazamentos de credenciais ou listas de e-mails."));
-                promises.push(searchPlatform(query, "Twitter / X", "twitter.com", "🐦", "Menções ou vinculações em tweets."));
-                promises.push(searchPlatform(query, "Gravatar", "gravatar.com", "🖼️", "Avatar e perfis vinculados globalmente ao e-mail."));
-                promises.push(searchPlatform(query, "Adobe / LinkedIn Leaks", "google.com", "🔓", "Dorks para verificar presença em bases de dados vazadas."));
+                promises.push(searchPlatform(query, "Pastebin / Ghostbin", "pastebin.com", "📋", "Possíveis vazamentos de credenciais em texto puro."));
+                promises.push(searchPlatform(query, "Twitter / X", "twitter.com", "🐦", "Menções públicas do e-mail em tweets."));
+                
+                promises.push(
+                    webSearch(`"${query}" intext:password OR intext:senha OR intext:leak`).then(links => {
+                        if (links && links.length > 0) {
+                            let details = {};
+                            links.forEach((link, i) => details[`Registro ${i+1}`] = link);
+                            return {
+                                source: "Vazamentos de Credenciais (Web)",
+                                icon: "🔓",
+                                desc: "Páginas indicando vazamentos ou associação do e-mail com senhas.",
+                                url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" intext:password OR intext:senha OR intext:leak`)}`,
+                                details
+                            };
+                        }
+                        return null;
+                    })
+                );
+
+                promises.push(
+                    webSearch(`"${query}" site:trello.com OR site:docs.google.com OR site:scribd.com`).then(links => {
+                        if (links && links.length > 0) {
+                            let details = {};
+                            links.forEach((link, i) => details[`Documento ${i+1}`] = link);
+                            return {
+                                source: "Documentos e Boards Públicos",
+                                icon: "📁",
+                                desc: "O e-mail foi encontrado em documentos compartilhados ou quadros de projetos.",
+                                url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" site:trello.com OR site:docs.google.com OR site:scribd.com`)}`,
+                                details
+                            };
+                        }
+                        return null;
+                    })
+                );
+
+                promises.push(
+                    webSearch(`"${usernamePart}" site:instagram.com OR site:facebook.com OR site:linkedin.com`).then(links => {
+                        if (links && links.length > 0) {
+                            let details = {};
+                            links.forEach((link, i) => details[`Perfil ${i+1}`] = link);
+                            return {
+                                source: "Associação de Username",
+                                icon: "👥",
+                                desc: `Possíveis perfis sociais utilizando o prefixo do e-mail (${usernamePart}).`,
+                                url: `https://www.google.com/search?q=${encodeURIComponent(`"${usernamePart}" site:instagram.com OR site:facebook.com OR site:linkedin.com`)}`,
+                                details
+                            };
+                        }
+                        return null;
+                    })
+                );
             }
 
             // Injeção de Dorks Avançados (Geral para todos os tipos)
