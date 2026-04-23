@@ -11,9 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const btnEmail = document.getElementById('btn-email');
     const inputEmail = document.getElementById('email-input');
-    
-    const btnPhone = document.getElementById('btn-phone');
-    const inputPhone = document.getElementById('phone-input');
 
     // Helper: Write to terminal
     function logToTerminal(message, type = 'info') {
@@ -58,7 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupModule(btnUsername, inputUsername, 'username');
     setupModule(btnName, inputName, 'name');
     setupModule(btnEmail, inputEmail, 'email');
-    setupModule(btnPhone, inputPhone, 'phone');
 
     function clearDashboard() {
         dashboard.innerHTML = '';
@@ -281,12 +277,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 promises.push(searchPlatform(query, "Twitter / X", "twitter.com", "🐦", "Menções ou vinculações em tweets."));
                 promises.push(searchPlatform(query, "Gravatar", "gravatar.com", "🖼️", "Avatar e perfis vinculados globalmente ao e-mail."));
                 promises.push(searchPlatform(query, "Adobe / LinkedIn Leaks", "google.com", "🔓", "Dorks para verificar presença em bases de dados vazadas."));
-            } else if (type === 'phone') {
-                const cleanPhone = query.replace(/[^\d+]/g, '');
-                promises.push(searchPlatform(cleanPhone, "WhatsApp Web", "wa.me", "💬", "Verificação de conta ativa no WhatsApp."));
-                promises.push(searchPlatform(cleanPhone, "Sync.Me / TrueCaller", "google.com", "📞", "Identificação de chamadas e nomes vinculados."));
-                promises.push(searchPlatform(cleanPhone, "Instagram / Facebook", "facebook.com", "📱", "Vincúlo de contatos em redes sociais."));
-                promises.push(searchPlatform(cleanPhone, "JusBrasil", "jusbrasil.com.br", "⚖️", "Menções em processos que citam contato telefônico."));
             }
 
             // Injeção de Dorks Avançados (Geral para todos os tipos)

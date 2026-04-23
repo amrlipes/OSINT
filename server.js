@@ -245,52 +245,6 @@ app.get('/api/osint/email', async (req, res) => {
     res.json({ target: query, type: "email", results });
 });
 
-app.get('/api/osint/phone', async (req, res) => {
-    const query = req.query.q;
-    if (!query) return res.status(400).json({ error: "Vazio" });
-    
-    const results = [];
-    const cleanPhone = query.replace(/[^\d+]/g, ''); // keeping + and numbers
-    
-    const searches = [
-        duckduckgoSearch(`"${cleanPhone}" OR "${query}"`).then(dorkLinks => {
-            if (dorkLinks && dorkLinks.length > 0) {
-                let details = {};
-                dorkLinks.forEach((link, i) => details[`Registro ${i+1}`] = link);
-                return {
-                    source: "Registros Telefônicos (Web)",
-                    icon: "☎",
-                    desc: "Encontramos páginas na web contendo este número.",
-                    url: `https://duckduckgo.com/?q=%22${encodeURIComponent(cleanPhone)}%22`,
-                    details
-                };
-            }
-            return null;
-        }),
-        searchPlatform(query, "Instagram", "instagram.com", "📸", "Vazamentos em bios do Instagram."),
-        searchPlatform(query, "JusBrasil", "jusbrasil.com.br", "⚖️", "Possível presença em processos no JusBrasil.")
-    ];
-
-    const completed = await Promise.allSettled(searches);
-    completed.forEach(result => {
-        if (result.status === 'fulfilled' && result.value) {
-            results.push(result.value);
-        }
-    });
-
-    if (results.length === 0) {
-        results.push({
-            source: "Segurança de Número",
-            icon: "🛡️",
-            desc: "Não encontramos vazamentos públicos do número de telefone.",
-            url: "#",
-            details: {}
-        });
-    }
-    
-    res.json({ target: query, type: "phone", results });
-});
-
 app.listen(PORT, '127.0.0.1', () => {
     console.log("=".repeat(50));
     console.log(" NEXUS OSINT ENGINE INICIADA (Node.js)");
