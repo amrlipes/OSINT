@@ -97,6 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function webSearch(query, domainFilter = "") {
         // Diversos motores para simular a abrangência do Google e evitar bloqueios
         const engines = [
+            `https://www.google.com/search?q=${encodeURIComponent(query)}`,
             `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
             `https://search.yahoo.com/search?p=${encodeURIComponent(query)}`,
             `https://www.bing.com/search?q=${encodeURIComponent(query)}`
@@ -105,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let allLinks = [];
         
         for (const engineUrl of engines) {
-            let html = await fetchWithProxy(engineUrl, 8000);
+            let html = await fetchWithProxy(engineUrl, 12000); // Timeout aumentado
             if (!html) continue;
             
             const parser = new DOMParser();
@@ -114,7 +115,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Para garantir resultados EXATOS, vamos buscar apenas as tags <a> que realmente representam 
             // os resultados de busca, ignorando links soltos de navegação, rodapé e propagandas.
             let foundLinks = [];
-            if (engineUrl.includes('duckduckgo')) {
+            if (engineUrl.includes('google')) {
+                foundLinks = doc.querySelectorAll('a');
+            } else if (engineUrl.includes('duckduckgo')) {
                 foundLinks = doc.querySelectorAll('a.result__url, a.result__snippet');
             } else if (engineUrl.includes('yahoo')) {
                 foundLinks = doc.querySelectorAll('.compTitle a, .algo a, h3.title a');
@@ -129,7 +132,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!href) return;
                 
                 // Limpeza de redirecionamentos (Google, Bing, Yahoo, DDG)
-                if (href.includes('RU=')) {
+                if (href.includes('/url?q=')) {
+                    const match = href.match(/\/url\?q=([^&]+)/);
+                    if (match) href = decodeURIComponent(match[1]);
+                } else if (href.includes('RU=')) {
                     const match = href.match(/RU=([^/&]+)/);
                     if (match) href = decodeURIComponent(match[1]);
                 } else if (href.includes('u=a1')) {
