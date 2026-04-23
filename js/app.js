@@ -274,19 +274,70 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (type === 'email') {
                 const usernamePart = query.split('@')[0];
                 
-                promises.push(searchPlatform(query, "GitHub", "github.com", "</>", "Assinaturas de commits ou perfis de desenvolvedor."));
-                promises.push(searchPlatform(query, "Pastebin / Ghostbin", "pastebin.com", "📋", "Possíveis vazamentos de credenciais em texto puro."));
-                promises.push(searchPlatform(query, "Twitter / X", "twitter.com", "🐦", "Menções públicas do e-mail em tweets."));
-                
+                // 1. Identificação de Redes Sociais Diretas (O e-mail citado explicitamente)
+                const socialNetworks = [
+                    { name: "Facebook", domain: "facebook.com", icon: "👥" },
+                    { name: "LinkedIn", domain: "linkedin.com", icon: "💼" },
+                    { name: "Twitter / X", domain: "twitter.com", icon: "🐦" },
+                    { name: "Instagram", domain: "instagram.com", icon: "📸" },
+                    { name: "TikTok", domain: "tiktok.com", icon: "🎵" },
+                    { name: "YouTube", domain: "youtube.com", icon: "▶️" },
+                    { name: "Reddit", domain: "reddit.com", icon: "🤖" },
+                    { name: "Pinterest", domain: "pinterest.com", icon: "📌" },
+                    { name: "GitHub", domain: "github.com", icon: "</>" },
+                    { name: "Medium", domain: "medium.com", icon: "✍️" }
+                ];
+
+                socialNetworks.forEach(net => {
+                    promises.push(
+                        webSearch(`"${query}" site:${net.domain}`).then(links => {
+                            if (links && links.length > 0) {
+                                let details = {};
+                                links.forEach((link, i) => details[`Perfil / Menção ${i+1}`] = link);
+                                return {
+                                    source: net.name,
+                                    icon: net.icon,
+                                    desc: `E-mail detectado publicamente na plataforma ${net.name}.`,
+                                    url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" site:${net.domain}`)}`,
+                                    details
+                                };
+                            }
+                            return null;
+                        })
+                    );
+                });
+
+                // 2. Busca por Identidade Global
+                promises.push(
+                    webSearch(`"${query}" site:gravatar.com OR site:foursquare.com`).then(links => {
+                        if (links && links.length > 0) {
+                            let details = {};
+                            links.forEach((link, i) => details[`Identidade ${i+1}`] = link);
+                            return {
+                                source: "Identidade Global (Gravatar & Afins)",
+                                icon: "🖼️",
+                                desc: "Perfil global vinculado a este endereço de e-mail.",
+                                url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" site:gravatar.com OR site:foursquare.com`)}`,
+                                details
+                            };
+                        }
+                        return null;
+                    })
+                );
+
+                // 3. Vazamentos de Credenciais em Dumps
+                promises.push(searchPlatform(query, "Pastebin / Ghostbin", "pastebin.com", "📋", "Possíveis vazamentos de credenciais em repositórios de texto puro."));
+
+                // 4. Vazamentos de Senhas (Deep Web / Open Web)
                 promises.push(
                     webSearch(`"${query}" intext:password OR intext:senha OR intext:leak`).then(links => {
                         if (links && links.length > 0) {
                             let details = {};
-                            links.forEach((link, i) => details[`Registro ${i+1}`] = link);
+                            links.forEach((link, i) => details[`Registro de Vazamento ${i+1}`] = link);
                             return {
-                                source: "Vazamentos de Credenciais (Web)",
+                                source: "Vazamentos de Credenciais (Web Indexada)",
                                 icon: "🔓",
-                                desc: "Páginas indicando vazamentos ou associação do e-mail com senhas.",
+                                desc: "Páginas indicando possível exposição de dados sensíveis ou senhas vinculadas ao e-mail.",
                                 url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" intext:password OR intext:senha OR intext:leak`)}`,
                                 details
                             };
@@ -295,16 +346,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     })
                 );
 
+                // 5. Documentos e Infraestrutura Corporativa
                 promises.push(
-                    webSearch(`"${query}" site:trello.com OR site:docs.google.com OR site:scribd.com`).then(links => {
+                    webSearch(`"${query}" site:trello.com OR site:docs.google.com OR site:scribd.com OR site:slideshare.net`).then(links => {
                         if (links && links.length > 0) {
                             let details = {};
-                            links.forEach((link, i) => details[`Documento ${i+1}`] = link);
+                            links.forEach((link, i) => details[`Documento Público ${i+1}`] = link);
                             return {
-                                source: "Documentos e Boards Públicos",
+                                source: "Documentos e Boards Corporativos",
                                 icon: "📁",
-                                desc: "O e-mail foi encontrado em documentos compartilhados ou quadros de projetos.",
-                                url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" site:trello.com OR site:docs.google.com OR site:scribd.com`)}`,
+                                desc: "O e-mail foi encontrado exposto em documentos, planilhas ou sistemas de gestão de projetos.",
+                                url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" site:trello.com OR site:docs.google.com OR site:scribd.com OR site:slideshare.net`)}`,
                                 details
                             };
                         }
@@ -312,16 +364,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     })
                 );
 
+                // 6. Investigação Híbrida do Username (Engenharia Reversa)
                 promises.push(
-                    webSearch(`"${usernamePart}" site:instagram.com OR site:facebook.com OR site:linkedin.com`).then(links => {
-                        if (links && links.length > 0) {
+                    webSearch(`"${usernamePart}" (site:instagram.com OR site:twitter.com OR site:tiktok.com OR site:reddit.com OR site:linkedin.com)`).then(links => {
+                        // Filtro estrito: garantir que o link contenha o prefixo de usuário
+                        const probableProfiles = links.filter(link => link.toLowerCase().includes(usernamePart.toLowerCase()));
+                        if (probableProfiles && probableProfiles.length > 0) {
                             let details = {};
-                            links.forEach((link, i) => details[`Perfil ${i+1}`] = link);
+                            probableProfiles.forEach((link, i) => details[`Link Filtrado ${i+1}`] = link);
                             return {
-                                source: "Associação de Username",
-                                icon: "👥",
-                                desc: `Possíveis perfis sociais utilizando o prefixo do e-mail (${usernamePart}).`,
-                                url: `https://www.google.com/search?q=${encodeURIComponent(`"${usernamePart}" site:instagram.com OR site:facebook.com OR site:linkedin.com`)}`,
+                                source: "Associação de Identidade (Username OSINT)",
+                                icon: "🕵️",
+                                desc: `Varredura ativa nas redes usando o prefixo [${usernamePart}] como ponteiro lógico. Apenas links de alta probabilidade foram retidos.`,
+                                url: `https://www.google.com/search?q=${encodeURIComponent(`"${usernamePart}" (site:instagram.com OR site:twitter.com OR site:tiktok.com OR site:reddit.com OR site:linkedin.com)`)}`,
                                 details
                             };
                         }
