@@ -62,13 +62,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- OSINT ENGINE (100% Frontend via CORS Proxy) ---
 
-    async function fetchWithProxy(url, timeout = 12000) {
+    async function fetchWithProxy(url, timeout = 15000) {
         const controller = new AbortController();
         const id = setTimeout(() => controller.abort(), timeout);
 
         try {
-            // Tentativa primária usando corsproxy.io (mais rápido, evita captcha do allorigins)
-            let proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+            // Tentativa primária usando codetabs (mais estável para Google)
+            let proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
             let response = await fetch(proxyUrl, { signal: controller.signal });
             
             if (response.ok) {
