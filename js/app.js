@@ -110,7 +110,19 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
-            const foundLinks = doc.querySelectorAll('a');
+            
+            // Para garantir resultados EXATOS, vamos buscar apenas as tags <a> que realmente representam 
+            // os resultados de busca, ignorando links soltos de navegação, rodapé e propagandas.
+            let foundLinks = [];
+            if (engineUrl.includes('duckduckgo')) {
+                foundLinks = doc.querySelectorAll('a.result__url, a.result__snippet');
+            } else if (engineUrl.includes('yahoo')) {
+                foundLinks = doc.querySelectorAll('.compTitle a, .algo a, h3.title a');
+            } else if (engineUrl.includes('bing')) {
+                foundLinks = doc.querySelectorAll('li.b_algo h2 a, .b_algo a');
+            } else {
+                foundLinks = doc.querySelectorAll('a');
+            }
             
             foundLinks.forEach(a => {
                 let href = a.getAttribute('href');
@@ -140,14 +152,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     !href.includes('duckduckgo.') && !href.includes('yandex.')) {
                     
                     if (domainFilter && !href.includes(domainFilter)) return;
+                    
+                    // --- FILTRO DE EXATIDÃO (OSINT PROFISSIONAL) ---
+                    // Ignorar páginas iniciais (ex: linkedin.com/) ou páginas de login/recuperação
+                    // que os motores de busca retornam quando não encontram o perfil exato.
+                    const isHomePage = href.replace(/^https?:\/\/(www\.)?/, '').split('/').filter(p => p !== '').length === 1;
+                    const isLoginPage = href.includes('/login') || href.includes('/signup') || href.includes('/recover') || href.includes('/auth');
+                    
+                    if (domainFilter && (isHomePage || isLoginPage)) {
+                        return; // Ignora o link, não é um resultado exato de um usuário/documento
+                    }
+                    
                     allLinks.push(href);
                 }
             });
             
-            if (allLinks.length > 15) break; 
+            // Se já encontrou links de altíssima qualidade nesta engine, não precisa poluir com as outras
+            if (allLinks.length >= 5) break; 
         }
         
-        return [...new Set(allLinks)].slice(0, 20); // Aumentado para 20 links
+        return [...new Set(allLinks)].slice(0, 10);
     }
 
     async function searchPlatform(query, platformName, domain, icon, desc) {
