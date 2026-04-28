@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- OSINT ENGINE (100% Frontend via CORS Proxy) ---
 
-    async function fetchWithProxy(url, timeout = 5000) {
+    async function fetchWithProxy(url, timeout = 12000) {
         const controller = new AbortController();
         const id = setTimeout(() => controller.abort(), timeout);
 
@@ -72,8 +72,12 @@ document.addEventListener('DOMContentLoaded', () => {
             let response = await fetch(proxyUrl, { signal: controller.signal });
             
             if (response.ok) {
-                clearTimeout(id);
-                return await response.text();
+                const text = await response.text();
+                // Codetabs retorna 200 OK com {"Error": ...} quando falha
+                if (text && !text.includes('"Error":') && text.length > 200) {
+                    clearTimeout(id);
+                    return text;
+                }
             }
 
             // Fallback para allorigins se falhar
@@ -97,8 +101,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function webSearch(query, domainFilter = "") {
         // Diversos motores para simular a abrangência do Google e evitar bloqueios
         const engines = [
+            `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`,
             `https://www.google.com/search?q=${encodeURIComponent(query)}`,
-            `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
             `https://search.yahoo.com/search?p=${encodeURIComponent(query)}`,
             `https://www.bing.com/search?q=${encodeURIComponent(query)}`
         ];
@@ -106,8 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let allLinks = [];
         
         for (const engineUrl of engines) {
-            let html = await fetchWithProxy(engineUrl, 12000); // Timeout aumentado
-            if (!html) continue;
+            let html = await fetchWithProxy(engineUrl, 15000); // Timeout aumentado
+            if (!html || html.length < 200) continue;
             
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
