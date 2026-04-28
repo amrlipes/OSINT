@@ -157,7 +157,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     !href.includes('bing.') && !href.includes('microsoft.') && 
                     !href.includes('duckduckgo.') && !href.includes('yandex.')) {
                     
-                    if (domainFilter && !href.includes(domainFilter)) return;
+                    if (domainFilter) {
+                        // Trata casos onde o domínio inclui "OR site:" para buscas múltiplas
+                        const domains = domainFilter.split(/ OR site:| OR /).map(d => d.replace('site:', '').trim()).filter(d => d);
+                        const match = domains.some(d => href.includes(d));
+                        if (!match) return;
+                    }
                     
                     // --- FILTRO DE EXATIDÃO (OSINT PROFISSIONAL) ---
                     // Ignorar páginas iniciais (ex: linkedin.com/) ou páginas de login/recuperação
@@ -310,37 +315,63 @@ document.addEventListener('DOMContentLoaded', () => {
                 const usernamePart = query.split('@')[0];
                 const domainPart = query.split('@')[1] || '';
 
-                // 1. Buscas Diretas Pelo E-mail (Vazamentos, Documentos e Pastes)
+                // 1. Buscas Exatas do E-mail em Redes Sociais e Perfis Pessoais
+                tasks.push(() => searchPlatform(`"${query}"`, "Facebook (Menções/Perfil)", "facebook.com", "👥", "Busca por ocorrências do e-mail exato em postagens ou páginas do Facebook."));
+                tasks.push(() => searchPlatform(`"${query}"`, "Instagram (Bio/Contato)", "instagram.com", "📸", "Busca pelo e-mail em biografias ou descrições no Instagram."));
+                tasks.push(() => searchPlatform(`"${query}"`, "LinkedIn (Vagas/Perfis)", "linkedin.com", "💼", "Busca pelo e-mail em perfis profissionais, postagens ou vagas."));
+                tasks.push(() => searchPlatform(`"${query}"`, "YouTube (Sobre/Descrições)", "youtube.com", "▶️", "Verificação do e-mail em descrições de vídeos ou na aba 'Sobre'."));
+                tasks.push(() => searchPlatform(`"${query}"`, "Twitter / X (Bio/Tweets)", "twitter.com", "🐦", "Tweets ou biografias que contêm o e-mail de forma explícita."));
+
+                // 2. Buscas Diretas Pelo E-mail (Vazamentos, Documentos e Pastes)
                 tasks.push(() => searchPlatform(`"${query}"`, "Vazamentos (Pastebin/Pastes)", "pastebin.com OR site:ghostbin.com OR site:hastebin.com", "📋", "Buscando o e-mail exato em repositórios de texto para encontrar possíveis vazamentos de dados."));
                 
                 tasks.push(() =>
-                    webSearch(`"${query}" intext:password OR intext:senha OR intext:leak`).then(links => {
+                    webSearch(`"${query}" (intext:password OR intext:senha OR intext:leak OR intext:dump)`).then(links => {
                         let details = {};
                         if (links && links.length > 0) {
                             links.forEach((link, i) => details[`Registro de Vazamento ${i+1}`] = link);
                         } else {
-                            details["Status"] = "Dados de vazamento requerem verificação manual via Dorks.";
+                            details["Status"] = "Nenhuma menção explícita de vazamento indexada no cache recente.";
                         }
                         return {
-                            source: "Credenciais Expostas (Deep/Open Web)",
+                            source: "Credenciais Expostas (Open Web)",
                             icon: "🔓",
                             desc: "Verificando fóruns e páginas que indicam exposição de senhas vinculadas ao e-mail.",
-                            url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" intext:password OR intext:senha OR intext:leak`)}`,
+                            url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" (intext:password OR intext:senha OR intext:leak OR intext:dump)`)}`,
                             details
                         };
                     })
                 );
 
-                // 2. Buscas em Plataformas Específicas que Exibem E-mail
+                tasks.push(() =>
+                    webSearch(`"${query}" (ext:pdf OR ext:xls OR ext:xlsx OR ext:csv OR ext:txt OR ext:doc OR ext:docx)`).then(links => {
+                        let details = {};
+                        if (links && links.length > 0) {
+                            links.forEach((link, i) => details[`Documento Encontrado ${i+1}`] = link);
+                        } else {
+                            details["Status"] = "Nenhum documento público com este e-mail foi indexado.";
+                        }
+                        return {
+                            source: "Documentos Públicos e Planilhas",
+                            icon: "📄",
+                            desc: "Busca por arquivos expostos na web contendo o endereço de e-mail exato.",
+                            url: `https://www.google.com/search?q=${encodeURIComponent(`"${query}" (ext:pdf OR ext:xls OR ext:xlsx OR ext:csv OR ext:txt OR ext:doc OR ext:docx)`)}`,
+                            details
+                        };
+                    })
+                );
+
+                // 3. Hubs de Desenvolvedores e Plataformas Colaborativas
                 tasks.push(() => searchPlatform(`"${query}"`, "Gravatar / Hubs Globais", "gravatar.com OR site:foursquare.com OR site:medium.com", "🖼️", "Plataformas que indexam e-mails publicamente para associar avatares e perfis corporativos."));
-                tasks.push(() => searchPlatform(`"${query}"`, "GitHub (Commits e Issues)", "github.com", "</>", "Repositórios, logs de commits de código-fonte e fóruns técnicos que citam este e-mail explicitamente."));
+                tasks.push(() => searchPlatform(`"${query}"`, "GitHub & GitLab", "github.com OR site:gitlab.com", "</>", "Repositórios, logs de commits de código-fonte e fóruns técnicos que citam este e-mail."));
                 
                 // Se for um e-mail corporativo, faz um OSINT do domínio
-                if (domainPart && domainPart !== 'gmail.com' && domainPart !== 'outlook.com' && domainPart !== 'hotmail.com' && domainPart !== 'yahoo.com') {
+                const freeEmailProviders = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'protonmail.com', 'bol.com.br', 'uol.com.br'];
+                if (domainPart && !freeEmailProviders.includes(domainPart.toLowerCase())) {
                     tasks.push(() => searchPlatform(domainPart, `Domínio Corporativo (${domainPart})`, domainPart, "🏢", "Investigação sobre o domínio da empresa/organização para mapear a infraestrutura e colegas de trabalho."));
                 }
 
-                // 3. Engenharia Reversa: Extração de Username
+                // 4. Engenharia Reversa: Extração de Username
                 // Na maioria das vezes, o alvo usa o prefixo do e-mail nas redes sociais.
                 tasks.push(() =>
                     webSearch(`"${usernamePart}"`).then(links => {
@@ -353,19 +384,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         return {
                             source: "Engenharia Reversa (OSINT de Username)",
                             icon: "🕵️",
-                            desc: `A ferramenta deduziu o username [${usernamePart}] a partir do e-mail. Esta é a varredura global desse prefixo.`,
+                            desc: `A ferramenta deduziu o username [${usernamePart}] a partir do e-mail. Varredura global desse prefixo.`,
                             url: `https://www.google.com/search?q=${encodeURIComponent(`"${usernamePart}"`)}`,
                             details
                         };
                     })
                 );
 
-                // 4. Varredura do Username Deduzido nas Redes Sociais
+                // 5. Varredura do Username Deduzido nas Redes Sociais
                 // Diferente de pesquisar o e-mail exato, pesquisar o username tem 90% mais eficácia no Instagram/Twitter.
                 tasks.push(() => searchPlatform(usernamePart, "Instagram (Via Username)", "instagram.com", "📸", `Busca de perfis no Instagram usando o prefixo deduzido [${usernamePart}].`));
                 tasks.push(() => searchPlatform(usernamePart, "Twitter / X (Via Username)", "twitter.com", "🐦", `Busca de perfis no Twitter usando o prefixo deduzido [${usernamePart}].`));
-                tasks.push(() => searchPlatform(usernamePart, "LinkedIn (Via Username)", "linkedin.com", "💼", `Busca profissional associada ao termo [${usernamePart}].`));
                 tasks.push(() => searchPlatform(usernamePart, "TikTok (Via Username)", "tiktok.com", "🎵", `Busca de perfis de vídeo usando o prefixo deduzido [${usernamePart}].`));
+                tasks.push(() => searchPlatform(usernamePart, "Pinterest (Via Username)", "pinterest.com", "📌", `Busca de interesses usando o prefixo deduzido [${usernamePart}].`));
             }
 
             // Injeção de Dorks Avançados (Geral para todos os tipos)
