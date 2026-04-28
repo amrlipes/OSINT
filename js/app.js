@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (engineUrl.includes('google')) {
                 foundLinks = doc.querySelectorAll('a');
             } else if (engineUrl.includes('duckduckgo')) {
-                foundLinks = doc.querySelectorAll('a.result__url, a.result__snippet');
+                foundLinks = doc.querySelectorAll('a.result__url, a.result__snippet, a.result-url, a.result-snippet, a.result-link');
             } else if (engineUrl.includes('yahoo')) {
                 foundLinks = doc.querySelectorAll('.compTitle a, .algo a, h3.title a');
             } else if (engineUrl.includes('bing')) {
@@ -173,8 +173,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     // que os motores de busca retornam quando não encontram o perfil exato.
                     const isHomePage = href.replace(/^https?:\/\/(www\.)?/, '').split('/').filter(p => p !== '').length === 1;
                     const isLoginPage = href.includes('/login') || href.includes('/signup') || href.includes('/recover') || href.includes('/auth');
+                    const isHelpPage = href.includes('/help') || href.includes('/support');
                     
-                    if (domainFilter && (isHomePage || isLoginPage)) {
+                    if (domainFilter && (isHomePage || isLoginPage || isHelpPage)) {
                         return; // Ignora o link, não é um resultado exato de um usuário/documento
                     }
                     
@@ -197,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (links && links.length > 0) {
             links.forEach((link, i) => details[`Registro ${i+1}`] = link);
         } else {
-            details["Status"] = "Extração automatizada bloqueada pelo buscador. Acesse a busca originária no botão abaixo.";
+            details["Status"] = "Nenhuma ocorrência exata e direta localizada. Explore via busca manual.";
         }
 
         return {
@@ -281,7 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (links && links.length > 0) {
                         links.forEach((link, i) => details[`Link ${i+1}`] = link);
                     } else {
-                        details["Status"] = "Resultados amplos devem ser visualizados manualmente devido à restrição do proxy.";
+                        details["Status"] = "Nenhuma menção explícita foi isolada. É altamente recomendável checar a busca originária.";
                     }
                     return {
                         source: "Google Index / Web Global",
